@@ -1,33 +1,46 @@
 # Architecture
 
-Related: [PRD](../PRD.md) · [Data model](data-model.md) · [API](api.md) · [Game engine](game-engine.md)
+Related: [PRD v2](../PRD.md) · [Experience & Motion](../design/experience-and-motion.md) · [Data model](data-model.md) · [API](api.md) · [Game engine](game-engine.md)
 
 ## 1. Overview
 
-Nue Uno is a single-page React app on Firebase Hosting. It reads game state from Cloud Firestore through real-time listeners and changes state **only** through Cloud Functions callables. The functions run a shared, pure TypeScript game engine inside Firestore transactions. That makes the server the single source of truth, and it keeps hidden information (the deck and other players' hands) off every client.
+Nue Uno is a single-page React app (and installable PWA) on Firebase Hosting. It uses two databases:
+
+- **Cloud Firestore** is the system of record: games, results, leaderboards, brackets, Passport, and Pick'em. Clients **only read** it. Every change goes through Cloud Functions callables. The callables run a shared, pure TypeScript game engine inside Firestore transactions, so the server is the only authority and hidden information (the deck and other players' hands) never reaches a client.
+- **Realtime Database (RTDB)** holds **short-lived social data**: presence (who's online), emotes, and crowd reactions. Clients write their own entries directly, and security rules validate them and limit how fast they can write. Nothing competitive lives in RTDB.
+
+Practice and tutorial games against bots run **entirely in the browser** using the same engine. Nothing is at stake in them, so they don't need the server.
 
 ```mermaid
 flowchart LR
-  subgraph Browser["Browser (React SPA)"]
-    UI[UI components]
-    ENG1["@nue-uno/engine<br/>(move hints only)"]
+  subgraph Browser["Browser (React SPA / PWA)"]
+    UI[UI + Choreographer]
+    ENG1["@nue-uno/engine<br/>hints + local practice/bots"]
     SDK[Firebase JS SDK]
   end
 
   subgraph Firebase
-    AUTH[Firebase Auth<br/>email link]
+    AUTH[Firebase Auth<br/>email link + custom claims]
     HOST[Firebase Hosting]
-    FN["Cloud Functions v2<br/>callables + triggers<br/>(@nue-uno/engine)"]
-    FS[(Cloud Firestore)]
+    FN["Cloud Functions v2<br/>callables · triggers · schedules<br/>(@nue-uno/engine)"]
+    FS[(Cloud Firestore<br/>system of record)]
+    RTDB[(Realtime Database<br/>presence · emotes · reactions)]
+    SM[Secret Manager]
   end
+
+  TEAMS[Microsoft Teams<br/>Workflows webhook]
 
   HOST -- static assets --> UI
   UI --> SDK
-  SDK -- sign-in link / ID token --> AUTH
+  SDK -- sign-in / ID token --> AUTH
   SDK -- "onSnapshot (read-only)" --> FS
-  SDK -- "httpsCallable(playCard, …)" --> FN
-  FN -- transaction read/write --> FS
-  FS -- "onDocumentWritten triggers" --> FN
+  SDK -- "httpsCallable(...)" --> FN
+  SDK -- "read/write own nodes (rules-validated)" --> RTDB
+  FN -- transactions --> FS
+  FN -- read presence --> RTDB
+  FS -- triggers --> FN
+  FN -- digests / highlights --> TEAMS
+  SM -- webhook URL --> FN
 ```
 
 ### Request lifecycle for a move
@@ -37,21 +50,22 @@ sequenceDiagram
   participant C as Client (player)
   participant F as playCard()
   participant D as Firestore
-  participant O as Other clients
+  participant O as Other clients + TV
 
-  C->>C: optimistic animation
+  C->>C: optimistic throw animation (X3)
   C->>F: { gameId, cardId, chosenColor?, declareUno?, clientMoveId, expectedVersion }
-  F->>F: verify auth + domain
-  F->>D: runTransaction: read games/{id}, private/state, hands/*
+  F->>F: requirePlayer (domain + active claim)
+  F->>D: runTransaction: read game, private/state, hands/*
+  F->>F: paused? → reject · now ≥ finalLapAt? → engine startFinalLap first
   F->>F: engine.applyAction(state, action)
   alt legal
-    F->>D: write public game doc, changed hands, event log, version+1
+    F->>D: write public doc, changed hands, private, events; deadline = now + turnMs + 1.5s grace
     F-->>C: { ok, version }
-    D-->>O: snapshot (public doc + event)
-    D-->>C: snapshot (public doc + own hand)
-  else illegal / stale
+    D-->>O: snapshot → EventQueue → Choreographer animates
+    D-->>C: snapshot → reconcile optimistic move
+  else illegal / stale / paused
     F-->>C: HttpsError(failed-precondition, reason)
-    C->>C: roll back animation, show toast
+    C->>C: spring card back + hint toast
   end
 ```
 
@@ -59,106 +73,134 @@ sequenceDiagram
 
 | Layer | Choice | Why |
 |---|---|---|
-| Language | TypeScript (strict) across the board | One language, and the engine is shared between client and server |
-| Monorepo | npm workspaces: `apps/web`, `functions`, `packages/engine` | Simple, no extra tooling |
-| Frontend | React 18+, Vite, React Router, Tailwind CSS, Framer Motion (card animations), Zustand (local UI state) | Fast to build, small bundle, good animation support |
-| Hosting | Firebase Hosting (SPA rewrite to `index.html`) | Required, with free SSL, CDN, and preview channels |
-| Auth | Firebase Auth, **Email link** provider | Required, and passwordless |
-| Database | Cloud Firestore (Native mode), in the same region as the functions | Real-time listeners, transactions, security rules |
-| Server | Cloud Functions for Firebase **2nd gen**, Node 22, `onCall` + Firestore triggers + one scheduled job | Server-authoritative game logic with no server to manage |
-| Validation | `zod` schemas shared by the web app and functions | One definition of every request payload |
-| Testing | Vitest, `@firebase/rules-unit-testing`, Firebase Emulator Suite, Playwright | See [testing-and-deployment.md](testing-and-deployment.md) |
+| Language | TypeScript (strict) everywhere | One language, and the engine is shared |
+| Monorepo | npm workspaces: `apps/web`, `functions`, `packages/engine`, `packages/shared` (zod schemas, constants) | Simple |
+| Frontend | React 18+, Vite, React Router, Tailwind CSS, Zustand (UI state) | Fast to build, small bundle |
+| Motion & effects | **Framer Motion** (springs, layout and FLIP animation, drag), **canvas-confetti** (particles, runs in a worker), **Howler.js** (sound sprites), CSS 3D for card flips | Covers the whole [motion spec](../design/experience-and-motion.md) without a 3D engine. Loaded only when a game opens. |
+| PWA | `vite-plugin-pwa` (manifest, icons, caching of the app shell and static assets) | Installable, full-screen, fast to reopen |
+| Hosting | Firebase Hosting (SPA rewrite) | Required |
+| Auth | Firebase Auth email link + **custom claims** (`admin`, `active`) | Required. Claims make permission checks in rules cheap. |
+| Database | Cloud Firestore (Native, `nam5`) + **Realtime Database** (`us-central1`) | Firestore for durable data, RTDB for presence and short-lived social data |
+| Server | Cloud Functions for Firebase 2nd gen, Node 22 | Callables, Firestore triggers, `onSchedule` jobs |
+| Secrets | Secret Manager via `defineSecret` | Teams webhook URL |
+| Validation | zod in `packages/shared` | One definition of every request payload |
+| Testing | Vitest, fast-check, `@firebase/rules-unit-testing` (Firestore + RTDB), Emulator Suite, Playwright | See [testing-and-deployment.md](testing-and-deployment.md) |
 | CI/CD | GitHub Actions | The code lives in GitHub |
-
-**Region:** `us-central1` for functions, and Firestore location `nam5` (US multi-region) or `us-central1`. Firestore's location can't be changed later, so we pick it once and document it in `firebase.json`.
 
 ## 3. Key decisions
 
-### ADR-1: Server-authoritative moves (no client writes to game state)
-- **Context:** Ranked results seed the bracket, so cheating must be impossible. If clients wrote game documents themselves, any player could read the deck or change their hand from the browser console.
-- **Decision:** Clients have **no write access** to game collections. Every state change goes through a callable function, which validates auth, loads state in a transaction, runs `engine.applyAction`, and writes the result.
-- **Hidden information:**
-  - Draw pile, RNG seed, and move-dedupe log live in `games/{id}/private/state`. Security rules make it unreadable by any client.
-  - Each hand lives in `games/{id}/hands/{uid}`, readable only by that player.
-  - The public doc `games/{id}` has only what everyone can see: top card, current color, hand **counts**, turn, and deadline.
-- **Consequence:** Every move costs one function call, about 150–400ms end to end when the function is warm. That's fine for a turn-based game. Cold starts are handled by setting `minInstances: 1` on the move functions during the event (see §6).
+### ADR-1: Moves are validated by the server (clients never write game state)
+- Clients have **no write access** to any Firestore collection. Every change goes through a callable that checks permissions, loads the game in a transaction, runs `engine.applyAction`, and writes the result.
+- **Hidden information:** the draw pile, RNG seed, move-dedupe log, and per-game stats live in `games/{id}/private/state`, which rules make unreadable. Each hand lives in `games/{id}/hands/{uid}`, readable only by its owner. The public game doc contains only what everyone can see.
+- **Consequence:** one function call per move, about 150–400ms when the function is warm. The optimistic throw animation (X3) hides this delay. Cold starts are avoided with `minInstances: 1` on the move functions during Uno Hours and on event day.
 
-### ADR-2: Shared pure engine package
-`packages/engine` has no Firebase or I/O dependencies. It exports types plus `createGame`, `applyAction`, `legalActions`, and `rankPlayers`. Functions use it to decide moves. The client uses it only to highlight playable cards and disable illegal buttons, never as the authority. The engine takes a seeded RNG, so any game can be replayed from its seed and action log. See [game-engine.md](game-engine.md).
+### ADR-2: One shared, pure engine package
+`packages/engine` has no I/O, no clock, and no `Math.random`. It exports types plus `createGame`, `applyAction`, `legalActions`, `rankPlayers`, and `botAction`. Functions use it as the authority. The client uses it for hints, and it runs practice and tutorial games locally. The RNG is seeded, so every game can be replayed. See [game-engine.md](game-engine.md).
 
-### ADR-3: Email-link auth, restricted to the company domain
-Firebase Auth can't stop someone from requesting a sign-in link for any email address. So the domain is enforced at every layer that matters:
+### ADR-3: Email-link auth, company domain, and roster approval
+1. The **UI** rejects non-`@nuesynergy.com` emails before calling `sendSignInLinkToEmail`.
+2. The **custom claim `active: true`** is required for every read of player data (Firestore and RTDB rules) and by every player callable. `saveProfile` sets it when the email is on the imported **roster**, or right away if `config/app.rosterRequired == false`. Otherwise the user stays *pending* until an admin runs `approveUser`. After the claim changes, the client refreshes its ID token with `getIdToken(true)`.
+3. **Rules and functions** also check `email_verified` and the domain pattern, as a second layer of defense.
+4. **Admins** have the claim `admin: true`, set by `scripts/grant-admin.ts`.
+5. Optional: upgrade to Identity Platform and add a `beforeUserCreated` blocking function. Decide in Week 1.
 
-1. **UI:** reject emails that don't end in `@nuesynergy.com` before calling `sendSignInLinkToEmail`.
-2. **Firestore rules:** every read requires `request.auth.token.email_verified == true && request.auth.token.email.matches('.*@nuesynergy[.]com$')`. Signing in by email link sets `email_verified` automatically.
-3. **Functions:** a shared `requireEmployee(request)` guard applies the same check and throws `permission-denied` otherwise.
-4. **Optional hardening:** upgrade to Firebase Auth with Identity Platform and add a `beforeUserCreated` blocking function that rejects other domains when the account is created. We'll decide in Week 1. Layers 1–3 are enough on their own.
+**Flow:** `sendSignInLinkToEmail(email, { url: <origin>/auth/finish, handleCodeInApp: true })` → `/auth/finish` → `signInWithEmailLink` (ask for the email again if the link was opened on another device). Persistence is `browserLocalPersistence`, and email enumeration protection is turned on.
 
-**Flow:**
-- `sendSignInLinkToEmail(email, { url: <origin>/auth/finish, handleCodeInApp: true })`, then save the email in `localStorage`.
-- On `/auth/finish`, check `isSignInWithEmailLink`, read the saved email (or ask for it if the link was opened on a different device), and call `signInWithEmailLink`.
-- Use `browserLocalPersistence` so players stay signed in.
-- Enable **email enumeration protection** in the Auth settings.
-- **Admins** are identified by a custom claim `admin: true`, set by `scripts/grant-admin.ts` with a service account. Security rules and functions check `request.auth.token.admin`.
+**Risk:** M365 quarantine or Safe Links may break the emails. Test with IT in Week 1. The fallback is the Microsoft OIDC provider.
 
-**Risk:** M365 may quarantine the sign-in emails or rewrite their links (Safe Links). The plan is to customize the email template and sender name, test with IT in Week 1, and get the sender and `*.firebaseapp.com` / `*.web.app` links allowlisted. If links still fail, the fallback is adding the Microsoft OIDC provider. The app's auth screen can take a second provider without other changes.
+### ADR-4: The server owns the clock (turn timer, grace, Final Lap, pause)
+All time decisions are made in functions, and the engine never reads a clock:
 
-### ADR-4: Server-enforced turn timer without a scheduler
-- Each state change sets `turnDeadline = now + 30s` (or `+5s` if the player is marked Away) on the public doc.
-- Every client shows a countdown. When it reaches zero plus 1 second of grace, **any** seated player's or spectator's client calls `claimTimeout({ gameId, expectedVersion })`.
-- The function checks `now >= turnDeadline` inside the transaction, then applies the engine's `timeout` action. Duplicate calls are harmless because the version check rejects them.
-- This needs no Cloud Tasks and no per-second polling. If every client disconnects, the game simply pauses, which is the right behavior.
-- A daily scheduled function, `cleanupStaleGames`, abandons lobbies idle for more than 30 minutes and in-progress games idle for more than 2 hours.
+- **Turn deadline** = `now + turnMs(mode) + 1500ms grace`. `turnMs` is 30s in casual and ranked games, 20s in bracket games, and 5s for Away players. The client starts its visible countdown when its animation queue is empty ([motion spec §4](../design/experience-and-motion.md#4-the-event-to-animation-pipeline)).
+- **Timeout:** when the countdown ends (plus 1s), any viewer's client calls `claimTimeout`. The function checks `now >= turnDeadline`, and the `expectedVersion` check makes duplicate calls harmless. No scheduler is needed.
+- **Final Lap:** `finalLapAt = startedAt + cap` (20 minutes in qualifiers, 12 in the bracket) is stored on the public doc. **Before** applying any move or timeout, the function checks `now >= finalLapAt` and, if so, first applies the engine's `startFinalLap` action. Because turn deadlines guarantee some call arrives within about 32 seconds, the Final Lap always starts on time without a timer job.
+- **Pause:** `pauseAll` sets `paused = true` and `pausedAt` on every in-progress bracket game. While paused, moves and timeouts are rejected with `PAUSED`. `resumeAll` shifts `turnDeadline` and `finalLapAt` forward by the length of the pause.
+- **Cleanup:** the daily job `cleanupStaleGames` handles abandoned lobbies and games.
 
-### ADR-5: Derived data via triggers
-When a game finishes, the move function writes `results/{gameId}` in the same transaction. The trigger `onResultWritten` then recomputes that player's `leaderboard` entry (best 10 of their results) and, if the game belongs to a bracket match, advances the bracket. Keeping these out of the move transaction makes moves fast and lets an admin void a result and have everything recompute.
+### ADR-5: Derived data is computed in triggers
+The move transaction writes only the game itself plus `results/{gameId}` when the game ends. Everything else is recomputed by triggers:
+
+| Trigger | Updates |
+|---|---|
+| `onResultWritten` | The leaderboard entry for each player (qualifier games only), the Passport, player stats, and bracket advancement |
+| `onLeaderboardEntryWritten` | The Department Cup entry for that player's department |
+| `onMatchCompleted` | Pick'em scores, TV ticker highlight, Teams post |
+
+Triggers **recompute from the source data instead of adding increments**, so running one twice, voiding a result, or an admin override all stay correct.
+
+### ADR-6: Realtime Database for presence and short-lived social data
+- **Presence:** the standard Firebase pattern. Each client writes `/status/{uid}` = `{ state: 'online', activity, gameId?, at }` and registers `onDisconnect().set({ state: 'offline', at })`. The lobby's "Online now" list and Mission Control's disconnect alerts read it. Functions read it too, for "table forming" nudges.
+- **Emotes and reactions:** clients write their *latest* emote or reaction to their own node (`/emotes/{gameId}/{uid}`, `/reactions/{targetId}/{uid}`). Rules enforce the allowed emoji list, domain, `active`, and a **minimum gap between writes** (`newData.at > data.at + 3000` for emotes and `+ 1000` for reactions). Viewers listen for `child_changed` events and animate them. The TV adds them up for the hype meter.
+- **Why RTDB:** it has cheap, fast writes and a built-in disconnect hook, and keeps this traffic out of Firestore listeners and function calls.
+- Emotes are shown only if the sender is seated at that game. The client filters them, and there's nothing competitive at stake.
+
+### ADR-7: Practice and tutorial games run in the browser
+`/practice` and `/tutorial` run `createGame` and `applyAction` locally, with `botAction` playing the bots after a delay of 0.9–1.8s. Nothing is written except one call to `completeTutorial` for the Passport stamp. **Bots never appear in Firestore games**, so ranked play stays human-only by design. The same bots drive the load test and the Mission Control demo mode.
+
+### ADR-8: Notifications without push (MVP)
+- **In-app inbox:** functions write `inbox/{uid}/items/{id}` for things like "table ready", "You're in! Seed 7", "Table forming — join", and rematch invites. The client listens to it and shows the right toast or full-screen takeover (N3). Web push is P2.
+- **Teams:** functions post Adaptive Cards to a Teams **Workflows webhook**. The URL is stored in Secret Manager. Posts come from a daily 09:00 digest (`onSchedule`), the Uno Hour start (`onSchedule` per the season's Uno Hours), new #1 and match results (triggers). Each post type can be turned on or off in `config/app.teams`.
+
+### ADR-9: TV as a separate route, directed by the admin
+`/tv` is a full-screen, no-interaction route that listens to `tv/state` (scene, featured table, Selection Show step, auto-cycle). The admin's director callables (`setTvScene`, `advanceSelectionShow`) write that doc. The TV loads its own asset bundle (the bigger TV sound set and fireworks) and runs its own animation queue per table.
 
 ## 4. Frontend structure
 
 ```
 apps/web/src/
-  main.tsx, App.tsx, router.tsx
-  firebase.ts                # init app, auth, firestore, functions; emulator wiring in dev
-  auth/                      # SignIn, FinishSignIn, RequireAuth, useCurrentUser
+  main.tsx, App.tsx, router.tsx, firebase.ts (Firestore, RTDB, Functions; emulator wiring)
+  auth/            SignIn, FinishSignIn, PendingApproval, RequireAuth/RequireActive/RequireAdmin
   features/
-    lobby/                   # LobbyPage, TableCard, CreateTableDialog, QuickMatchButton
-    table/                   # PreGameTable (seats, ranked toggle, start)
-    game/                    # GamePage, Hand, Card, DiscardPile, OpponentSeat, TurnTimer,
-                             # ColorPicker, UnoButton, CatchButton, ResultsDialog
-    leaderboard/             # LeaderboardPage, MyQualifierCard
-    profile/                 # ProfilePage (name, avatar, attending toggle, history)
-    bracket/                 # BracketPage, MyMatchBanner
-    tv/                      # TvPage (big-screen bracket + live tables)
-    admin/                   # AdminHome, PlayersTable, SeasonSettings, BracketBuilder, Overrides
-  hooks/                     # useGame(gameId), useMyHand(gameId), useLeaderboard(), useBracket()
-  api/                       # typed wrappers around httpsCallable, using shared zod schemas
-  ui/                        # design-system primitives (Button, Dialog, Toast, Avatar)
+    onboarding/    FirstRun (name, avatar, department, attending), RulesSheet, Tutorial
+    lobby/         LobbyPage, OnlineNow, UnoHourCountdown, TableCard, QuickMatch, FormingToast
+    table/         PreGameTable (seats, ranked toggle, collusion warning, QR share)
+    game/          GamePage, Table, Hand, Card, Pile, OpponentSeat, TurnRing, ColorPicker,
+                   UnoButton, CatchButton, EmoteBar, EventFeed, ResultsPodium, FinalLapBanner
+    practice/      PracticeSetup, LocalGameRunner (engine + bots)
+    leaderboard/   LeaderboardPage, MyQualifierCard, DepartmentCup
+    passport/      PassportPage, StampGrid
+    event/         EventHub, MyMatchCard, CheckIn (/table/:n), PickemPage, SpectateTable, ReactionBar
+    tv/            TvRoot + scenes/{BracketBoard, PlayerIntros, SelectionShow, PickemStandings,
+                   DeptCup, FeaturedTable, Awards, Champion}, Ticker, ReactionLayer
+    admin/         MissionControl, Players, Roster, SeasonSettings, BracketBuilder, TvDirector,
+                   Broadcast, Overrides, Stats, PrintBracket
+    wrapped/       WrappedStory, ShareCard (html-to-image → PNG), HallOfFame
+    dev/           EffectsGallery (/dev/effects, dev builds only)
+  motion/          tokens.ts, EventQueue.ts, Choreographer.tsx, effects/* (one file per moment), fpsGovernor.ts
+  audio/           sound.ts (Howler sprite, unlock, mute), haptics.ts
+  hooks/           useGame, useMyHand, useEvents, usePresence, useInbox, useLeaderboard, useBracket, useTvState
+  api/             typed callable wrappers (zod from packages/shared)
+  ui/              design-system primitives
 ```
 
-**Routes:** `/signin`, `/auth/finish`, `/` (lobby), `/t/:gameId` (pre-game table or game), `/leaderboard`, `/profile`, `/bracket`, `/tv`, `/admin/*` (guarded by the admin claim).
+**Routes:** `/signin`, `/auth/finish`, `/welcome`, `/` (lobby, or Event Hub when the season is in `event`), `/t/:gameId`, `/practice`, `/tutorial`, `/rules`, `/leaderboard`, `/passport`, `/profile`, `/bracket`, `/pickem`, `/table/:n` (QR check-in), `/watch/:gameId`, `/tv`, `/wrapped`, `/hall-of-fame`, `/admin/*`, `/dev/effects`.
 
-**State:** Firestore listeners are the source of truth for server state. Zustand holds only local UI state: the selected card, open dialogs, and pending optimistic moves.
+**Code splitting:** the lobby bundle must stay ≤ 250 KB gzipped. `game`, `tv`, `admin`, `wrapped`, and the motion and audio modules are lazy-loaded chunks.
 
-**Card rendering:** cards are SVG components with original art. Each color pairs with a shape (red ◆, yellow ●, green ▲, blue ■) so the cards are colorblind-safe (PRD G9).
+**Card rendering:** SVG card faces from a single sprite sheet, with colorblind-safe shapes (red ◆, yellow ●, green ▲, blue ■) and the Nue Wild art.
 
 ## 5. Security model summary
 
+`player` means `email_verified` + company domain + claim `active == true`.
+
 | Resource | Client read | Client write |
 |---|---|---|
-| `users/{uid}` | any employee | none (profile updates go through `saveProfile`) |
-| `seasons/*`, `leaderboard/**`, `results/*`, `brackets/**` | any employee | none |
-| `games/{id}` (public) | any employee | none |
+| `config/*`, `users/{uid}` (own) | any signed-in company user (pending users need their own doc) | none |
+| `users/*`, `seasons/*`, `leaderboard/**`, `departmentCup/**`, `results/*`, `brackets/**`, `passport/*`, `playerStats/*`, `picks/*`, `pickem/**`, `announcements/*`, `tv/*`, `awards/*`, `hallOfFame/*`, `wrapped/*` | player | none |
+| `games/{id}`, `games/{id}/events/*` | player | none |
 | `games/{id}/hands/{uid}` | only `uid` | none |
 | `games/{id}/private/*` | **none** | none |
-| `games/{id}/events/*` | any employee | none |
-| `auditLog/*` | admins | none |
+| `inbox/{uid}/items/*` | only `uid` | none |
+| `roster/*`, `auditLog/*` | admin | none |
+| RTDB `/status/{uid}` | player | own node, schema-validated |
+| RTDB `/emotes/{gameId}/{uid}`, `/reactions/{targetId}/{uid}` | player | own node, allowed values only, rate-limited |
 
-The full rules are in [data-model.md](data-model.md#security-rules).
+Full rules are in [data-model.md](data-model.md#security-rules).
 
 ## 6. Operations
 
-- **Environments:** `nue-uno-dev` and `nue-uno-prod`, two separate Firebase projects, both on the **Blaze** plan (functions require it).
-- **Cost:** about 50 users generate a few hundred thousand Firestore operations and function calls in total, well within the free tier. Set a **$25 budget alert** anyway.
-- **Event-day warmup:** set `minInstances: 1` on `playCard`, `drawCard`, `passTurn`, `claimTimeout`, and `callUno` through a config flag. Deploy it the day before and turn it off afterwards.
-- **Observability:** Cloud Logging with structured logs (`gameId`, `uid`, `action`, `version`, `durationMs`). Firebase console alerts for function error rate.
-- **Backups:** export Firestore to a GCS bucket right before seeding lock and before the event.
+- **Environments:** `nue-uno-dev` and `nue-uno-prod`, both on Blaze. Each has Firestore, RTDB, Functions, Hosting, and Secret Manager.
+- **Cost:** well within the free tier at this scale. The biggest line item is `minInstances` during Uno Hours and the event, about a few dollars. Budget alert at $25.
+- **Warm instances:** `WARM_MOVE_FUNCTIONS` config toggles `minInstances: 1` on the move callables. Turn it on for the qualifier weeks from 11:30 to 17:00 by redeploying, or leave it on (about $5–10/month). Keep it on for event day.
+- **Observability:** structured logs (`gameId`, `uid`, `action`, `version`, `durationMs`). An alert when the function error rate is over 2%. The Mission Control stuck-table alerts (AD5) act as a human-facing monitor.
+- **Backups:** export Firestore before seeding lock and on event morning.

@@ -86,7 +86,7 @@ Scoring details are in [tournament.md](engineering/tournament.md).
 | ID | Story | Pri | Acceptance criteria |
 |---|---|---|---|
 | A1 | Sign in with a magic link to my work email | P0 | Entering an email sends a link. Opening it on the same device signs me in. On a different device, I confirm my email first. I stay signed in across restarts. |
-| A2 | Only employees can get in | P0 | Only `@nuesynergy.com` addresses are accepted. The UI, database rules, and server all enforce this (see [architecture ADR-3](engineering/architecture.md#adr-3-email-link-auth-restricted-to-the-company-domain)). |
+| A2 | Only employees can get in | P0 | Only `@nuesynergy.com` addresses are accepted. The UI, database rules, and server all enforce this (see [architecture ADR-3](engineering/architecture.md#adr-3-email-link-auth-company-domain-and-roster-approval)). |
 | A3 | Only real people can get in (roster) | P1 | An admin imports the HR roster CSV (email, name, department). Anyone who signs in with an address not on the roster, such as a shared mailbox, sees "Waiting for approval" until an admin approves them. |
 | A4 | Set up my identity in under 30 seconds | P0 | First-run setup asks for a display name (prefilled from the roster or email) and an avatar (12 presets). It also asks for **department** (prefilled from the roster, otherwise picked from a list) and "I'll be at the in-office event" (yes / no / not sure). |
 | A5 | Personalize my profile | P1 | I can choose an avatar **color** and a **signature card**, which shows on my intro card. Frames and card backs I've unlocked (see C3) can be equipped. |

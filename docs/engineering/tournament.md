@@ -1,19 +1,30 @@
-# Tournament: Qualifiers, Seeding, and Bracket
+# Tournament: Qualifiers, Seeding, Bracket, and Side Competitions
 
-Related: [PRD §4–5](../PRD.md#4-tournament-lifecycle) · [Data model](data-model.md) · [API](api.md)
+Related: [PRD v2 §4–7](../PRD.md#4-tournament-lifecycle-and-timeline) · [Data model](data-model.md) · [API](api.md) · [Game engine](game-engine.md)
 
-All numbers here are defaults stored in `seasons/{id}.scoring`. An admin can change them before qualifiers open.
+All numbers below are defaults stored in `seasons/{id}`. An admin can change them before qualifiers open.
 
 ## 1. Qualifiers
 
-### Which games count
-A game is **ranked**, and produces a `results` doc, only if all of the following are true when `startGame` runs:
-- the host requested Ranked,
-- **3 or more** players are seated. Two-player games are always casual, because a 2-player table is too easy to arrange with a friend.
-- the time is inside `[qualifierStart, qualifierEnd)` and `season.status == 'qualifying'`,
-- the anti-collusion check below passes.
+### Which games are ranked
+A game starts as **ranked** only if all of these are true when `startGame` runs:
+- the host asked for Ranked,
+- **3 or more** humans are seated (2-player games are always casual),
+- the time is inside `[qualifierStart, qualifierEnd)` and the season status is `qualifying`,
+- the same group of players hasn't already played `maxSameGroupPerDay` (2) ranked games together today (see anti-collusion below).
 
-A game that starts inside the window counts even if it finishes after the window closes.
+A game that starts inside the window counts even if it finishes after the window closes. Practice games against bots never count.
+
+### Which results count
+Every human game writes a `results` doc, which is used for the Passport and stats. Within a **ranked** result, each placement entry has a `counts` flag:
+
+| Situation | `counts` |
+|---|---|
+| The game reached **12 or more turns** (`minTurnsForPoints`) | `true` for everyone |
+| The game ended before 12 turns, player **did not** forfeit | `false`: no points for anyone who stayed |
+| The game ended before 12 turns, player **forfeited** | `true`, with last-place points, so quitting can't be used to escape a bad result |
+
+This stops friends from quitting early to hand someone a win (v1 review finding #14).
 
 ### Placement points
 | Table size | 1st | 2nd | 3rd | 4th |
@@ -21,60 +32,64 @@ A game that starts inside the window counts even if it finishes after the window
 | 4 players | 10 | 6 | 3 | 1 |
 | 3 players | 8 | 4 | 1 | — |
 
-Players who forfeit get the points for last place. Placement order is defined in [game-engine.md §Game end](game-engine.md#game-end-and-placements).
+Placement order follows [game-engine.md §Game end](game-engine.md#game-end-and-placements). It works the same whether the game ended by an empty hand, the Final Lap, or everyone else leaving. Players who forfeit get last-place points.
 
 ### Qualifier score
 ```
-score        = sum of a player's best 10 point totals (bestN = 10) among non-voided ranked results
-eligible     = rankedGames >= 3 (minGames)
+score     = sum of the best 10 (bestN) point totals among the player's counting, non-voided ranked entries
+eligible  = number of counting ranked entries >= 3 (minGames)
 ```
-**Leaderboard order:** `score` desc → `winRate` desc → `avgPlace` asc → earliest time the player reached their current score.
+**Leaderboard order:** `score` desc → `winRate` desc → `avgPlace` asc → `scoreReachedAt` asc (whoever reached the score first ranks higher).
 
-Why best 10: it rewards good results without making volume the deciding factor. After about 10 games, extra games help only if they beat your weakest counted game.
-
-**Worked example.** Priya has played 12 ranked games (4 players unless noted):
+**Worked example.** Priya has 12 counting ranked games (4 players unless noted):
 
 | Game | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 (3p) | 9 | 10 | 11 | 12 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | Place | 1 | 3 | 2 | 4 | 1 | 2 | 3 | 1 | 4 | 2 | 3 | 1 |
 | Points | 10 | 3 | 6 | 1 | 10 | 6 | 3 | 8 | 1 | 6 | 3 | 10 |
 
-Best 10 = drop two of the 1-point games → 10+10+10+8+6+6+6+3+3+3 = **65**. Her record is 4 wins in 12 games (winRate 0.333) and she is eligible.
+Best 10 drops the two 1-point games: 10+10+10+8+6+6+6+3+3+3 = **65**. She has 4 wins (winRate 0.333) and is eligible.
 
 ### Anti-collusion
-`groupKey` = the sorted UIDs of the seated players, joined with `_`. When a ranked game starts, count that season's non-voided ranked results with the same `groupKey` whose `finishedAt` falls on the same calendar day (company time zone, `America/Chicago`, configurable). If the count is already `maxSameGroupPerDay` (2) or more, the game starts as **casual**. The lobby shows a warning before the host presses Start.
+`groupKey` = the sorted UIDs joined with `_`. When `joinTable` or `startGame` runs, count that season's non-voided ranked results with the same `groupKey` from today (in `season.timezone`). If the count is 2 or more, the lobby shows `collusionWarning` and the game starts as **casual**. Admins can also void anything that looks suspicious.
 
-This doesn't stop every form of collusion, but it's enough for a friendly internal event. Admins can also `voidGame` anything suspicious.
+### Uno Hours
+These are scheduled windows (default weekdays 12:00–12:45 and 16:00–16:30 Central) when players are encouraged to be online at the same time. They're a way to get people online together, not a scoring rule: games count the same inside and outside Uno Hours. The lobby shows a countdown, and `unoHourAnnouncer` posts to Teams and shows a banner when one starts.
 
-## 2. Seeding
+## 2. Seeding and the Selection Show
 
 At seeding lock (end of the qualifier window):
-1. Take the leaderboard entries where `eligible && attendingEvent`, in leaderboard order.
-2. Remove anyone the admin excluded.
-3. Seeds 1..N go to the top N. By default N = `bracketSize` = 16. If fewer eligible players are attending, N = everyone eligible (minimum 3).
-4. The admin reviews the **draft**, can swap seeds or pull in the next eligible player for a no-show, and then **locks** it.
+1. Take the leaderboard entries where `eligible` is true and `attendingEvent == 'yes'`, in leaderboard order.
+2. Remove anyone the admin has excluded.
+3. Seeds 1..N go to the top N (default 16). If fewer players qualify, N = all eligible attendees, with a minimum of 3.
+4. The draft stays **private** (visible to admins only) until the Selection Show. The public leaderboard still shows who is above the Top 16 cut line. With the blackout (P2), the top 20 are hidden for the final 24 hours.
 
-On event morning, if a seeded player is absent, the admin uses `editBracketSeeds` before Round 1 starts (the bracket must still be a draft, so lock it only once attendance is confirmed) or uses `force` start and lets timeouts play for the missing player.
+**Event morning:** admins confirm who is actually present, replace no-shows with the next eligible player (`editBracketSeeds`), and **lock** the bracket.
+
+**Selection Show order:** seeds are revealed from 16 down to 1. Each reveal shows the seed, player, qualifier record, and assigned table, and sends that player a "You're in!" takeover on their phone. The top 4 reveals get extra suspense. Last, the full bracket assembles on screen.
 
 ## 3. Bracket format
 
-Tables of 4 (or 3). **The top 2 at each table advance.** When 4 or fewer players remain, they play the **Final table**: 3 games, ranked by total placement points.
+Tables of 4 (or 3). **The top 2 at each table advance.** When 4 or fewer players remain, they play the **Final**: 3 games, ranked by total placement points.
 
-### Default: 16 players → 3 rounds
+**Bracket timers:** 20s turns plus 1.5s of grace. **The Final Lap starts at 12 minutes**, so each game lasts at most about 12 min plus one more lap (roughly 1–2 minutes). See [PRD §7](../PRD.md#7-event-run-of-show-default-16-player-bracket-2-hour-block) for the run-of-show.
+
+### Default: 16 players, 3 rounds
 
 ```
-Round 1 (4 tables of 4)      Semifinal (2 tables of 4)     Final (1 table, best of 3 games)
+Round 1 (4 tables of 4)      Semifinal (2 tables of 4)     Final (1 table, 3 games)
  A: 1  8  9 16  ─┐
  B: 2  7 10 15  ─┼──► E: A1 C1 B2 D2 ─┐
  C: 3  6 11 14  ─┤                    ├──► Final: E1 E2 F1 F2
  D: 4  5 12 13  ─┴──► F: B1 D1 A2 C2 ─┘
 ```
 
-- **Round 1: snake seeding.** Seeds 1–4 go to tables A→D, seeds 5–8 to D→A, 9–12 to A→D, and 13–16 to D→A. Every table's seeds add up to 34, so the tables are balanced.
-- **Semifinal: cross-pairing.** Table winners are spread round-robin, and runners-up go to a table **without** their Round-1 table-mate. So no two players from the same Round-1 table meet again until the final.
-- **Final:** 3 games with the same 4 players. Each game awards 10/6/3/1. Final standings are by total points, then number of game wins, then placement in game 3. The top finisher is the **Champion**.
+- **Round 1 uses snake seeding.** Seeds 1–4 go A→D, seeds 5–8 go D→A, and so on. Every table's seeds add up to 34.
+- **The Semifinal splits up Round 1 tables.** Table winners are spread round-robin. Runners-up go to a table that doesn't have their Round-1 table-mate.
+- **Final:** 3 games, each awarding 10/6/3/1. Ranked by total points, then game wins, then placement in game 3.
+- **Default physical tables:** Round 1 A–D → tables 1–4. Semifinal E, F → tables 1, 2. Final → table 1 (the "main stage", next to the TV).
 
-**Estimated run time:** about 15 minutes per single-game round with the 30s timer, and about 40 minutes for the final. With check-in and buffer, the total is **about 75–90 minutes**.
+**Worst-case timing:** Round 1 about 14 min, Semifinal about 14 min, Final about 3 × 14 = 42 min. That's about 70 min of play, plus the Selection Show, breaks, and awards, for about 100 minutes in total.
 
 ### Bracket generation (general N)
 ```
@@ -83,27 +98,72 @@ function generateBracket(seeds[1..N]):
   while len(players) > 4:
       T = ceil(len(players) / 4)
       short = 4*T - len(players)            // number of 3-seat tables (0..3)
-      tables = T tables; the first `short` tables (top seeds) get 3 seats, the rest 4
+      the first `short` tables (top seeds) get 3 seats; the rest get 4
       if round == 1: fill by snake over seed order, skipping full tables
-      else:          winners round-robin over tables, then runners-up greedily into
-                     the next table that has no Round-(r-1) table-mate and a free seat
+      else:          winners round-robin over the tables, then runners-up greedily into the
+                     next table that has a free seat and no Round-(r-1) table-mate
       emit matches with slots { source: seed | {matchId, place} }
       players = 2*T placeholders; round++
-  emit Final match with the remaining (≤4) placeholders, gamesToPlay = finalGames
+  emit the Final with the remaining (≤4) placeholders, gamesToPlay = finalGames
 ```
 
 | N | Rounds (tables) | Notes |
 |---|---|---|
 | 8 | R1 (2×4) → Final | |
-| 10 | R1 (3 tables: 3,3,4) → SF (2×3) → Final | Tables A and B (top seeds) have 3 seats |
+| 10 | R1 (3,3,4) → SF (2×3) → Final | The top seeds get the 3-seat tables |
 | 12 | R1 (3×4) → SF (2×3) → Final | |
 | 16 | R1 (4×4) → SF (2×4) → Final | Default |
-| 20 | R1 (5×4) → R2 (3,3,4) → SF (2×3) → Final | Adds a round (about +15 min) |
+| 20 | R1 (5×4) → R2 (3,3,4) → SF (2×3) → Final | Adds about 15 minutes |
 
-### Advancement mechanics
-- A bracket game's `results` doc triggers `advanceBracket(matchId)`. Standings are **recomputed** from all non-voided results of that match, so an admin void or override just triggers another recompute.
-- When a match is complete, its `advancing` UIDs are written into the slots of later matches that reference `{ matchId, place }`. A match whose slots are all filled becomes `ready`, and its players see the **Join now** banner.
-- **Admin override** (`overrideMatchResult`) writes the standings directly, marks `override`, and advances the bracket the same way.
+### Advancement
+- Every bracket game result calls `advanceBracket(matchId)`, which **recomputes** standings from the match's non-voided results. Voids and admin overrides simply trigger another recompute.
+- When a match completes, its `advancing` players fill the slots in later matches. When all slots in a match are filled, it becomes `ready`: its players get a takeover on their phones, and the TV shows a match callout.
+- There are no ties within a single game, because the engine's placement order always separates players.
 
-### Tie handling inside a single-game match
-There are no ties for placement: the engine's placement order is total (fewest cards → lowest hand value → seat distance from the winner).
+## 4. Pick'em
+
+- **Who:** any active player, including bracket players (they can pick themselves).
+- **What:**
+  - (a) a **champion** pick, locked when Round 1's first game starts
+  - (b) a **winner for each table**, each locked when that table's game starts. For the Final, the pick is the overall winner of the Final.
+- **Scoring:** 3 points for each correct table winner and 10 points for the correct champion.
+  - Round 1 picks can be made before the Selection Show ends. Later-round picks open as soon as that match's players are known.
+- **Leaderboard order:** points desc → number of correct picks desc → earliest champion pick.
+- **Computed** by `onMatchWritten` whenever a match completes, from `picks` and match `advancing[0]`.
+
+## 5. Department Cup
+
+```
+cupScore(dept) = sum of the top 3 (topN) qualifier scores among the department's members
+               + 2 (participationBonus) × number of members with ≥ 3 (participationMinGames) counting ranked games
+```
+**Example:** Finance's top three scores are 72, 65, and 40 (177 total), and 5 members have played 3 or more counting games (+10). Cup score = **187**.
+
+- Remote employees count. Seeding isn't involved.
+- Departments come from the roster (or the profile picker), and admins can fix them.
+- Ties are broken by the higher total participation bonus, then the best single score.
+- The Cup is recomputed by `onLeaderboardEntryWritten`, so voids are reflected automatically.
+
+## 6. Awards
+
+`computeAwards` runs after the Final. Each award requires at least 3 human games. Ties are broken by the fewest games played (a higher rate wins), and if still tied, the award is shared.
+
+| Award | Rule | Data |
+|---|---|---|
+| 🏆 **Champion** | Bracket winner | `brackets.championUid` |
+| 🤝 **Connector** | Most distinct coworkers played, then most cross-department pairs | `passport` |
+| 😈 **Draw-4 Dealer** | Most Wild Draw 4s played | `playerStats.wild4Played` |
+| 🔄 **Comeback Kid** | Largest peak hand size in a game they went on to win | `playerStats.maxCardsHeldInWin` (the winner's `stats.maxHandSize` per result) |
+| 🎯 **Sharpshooter** | Most successful UNO catches | `playerStats.catches` |
+| 🦾 **Iron Player** | Most human games played | `playerStats.humanGames` |
+| 🏢 **Department Cup** | Top `cupScore` | `departmentCup` |
+| 🔮 **Oracle** (Pick'em) | Top Pick'em score | `pickem` |
+
+## 7. Connection Passport
+
+- A **stamp** for each distinct coworker played in any human game (casual, ranked, or bracket). Bots never count.
+- Each opponent's department is recorded, which gives **department stamps**.
+- `crossDeptPairs` = distinct opponents from a department other than the player's own.
+- **Milestones:** 5, 10, and 20 coworkers, all departments, and finishing the tutorial. Each milestone gets an animated stamp in the results screen and profile. Milestones can unlock cosmetics (P2).
+- The Passport is recomputed from `results` by `onResultWritten`, so voided games drop out.
+- It feeds these success metrics: average distinct coworkers per player (target ≥ 6) and cross-department share of pairings (target ≥ 50%).

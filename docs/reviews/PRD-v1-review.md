@@ -71,7 +71,7 @@ The first draft is a solid spec for **a working Uno game with a leaderboard**. I
 
 ## Follow-up changes to the engineering docs
 
-These become necessary once v2 is approved. They are **not yet applied**:
+**Status: applied** (2026-09-23). The engineering docs now match PRD v2.
 
 | Doc | Change |
 |---|---|

@@ -25,7 +25,7 @@ Employees sign in with their `@nuesynergy.com` email and play **ranked qualifier
 
 - **Frontend:** React + TypeScript + Vite, Tailwind CSS, hosted on **Firebase Hosting**
 - **Auth:** Firebase Authentication, **email link (magic link)**, limited to `@nuesynergy.com`
-- **Data:** Cloud Firestore with real-time listeners
+- **Data:** Cloud Firestore (system of record) + Realtime Database (presence, emotes, reactions)
 - **Game server:** Cloud Functions for Firebase (2nd gen, TypeScript), which run a shared pure game engine
 - **Code:** GitHub monorepo (npm workspaces); CI/CD with GitHub Actions
 
