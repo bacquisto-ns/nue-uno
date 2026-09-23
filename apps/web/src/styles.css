@@ -78,3 +78,19 @@ body {
   outline: 3px solid var(--color-gold);
   outline-offset: 2px;
 }
+
+/* X10 heartbeat for the last 5 seconds of a turn. */
+@keyframes heartbeat {
+  0%, 100% { transform: rotate(-90deg) scale(1); }
+  50% { transform: rotate(-90deg) scale(1.06); }
+}
+
+/* X8-lite: gold pulse on a seat holding one card. */
+@keyframes uno-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 #f5c54288; }
+  50% { box-shadow: 0 0 0 10px #f5c54200; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
+}

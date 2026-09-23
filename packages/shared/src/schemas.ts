@@ -1,4 +1,4 @@
-import { COLORS } from '@nue-uno/engine';
+import { COLORS, type EngineError } from '@nue-uno/engine';
 import { z } from 'zod';
 import { AVATAR_COLORS, AVATARS } from './constants.js';
 
@@ -73,6 +73,23 @@ export type ChooseColorInput = z.infer<typeof ChooseColorInput>;
 export type CatchUnoInput = z.infer<typeof CatchUnoInput>;
 export type ClaimTimeoutInput = z.infer<typeof ClaimTimeoutInput>;
 
+export const QuickMatchInput = z.object({}).passthrough();
+
+// ---- Admin ----------------------------------------------------------------------------------
+
+export const RosterRow = z.object({
+  email: z.email().transform((e) => e.trim().toLowerCase()),
+  name: z.string().trim().min(1).max(80),
+  department: z.string().trim().min(1).max(60),
+  office: z.string().trim().max(60).nullish(),
+});
+export const ImportRosterInput = z.object({
+  rows: z.array(RosterRow).min(1).max(2000),
+  replace: z.boolean().optional(),
+});
+export const ApproveUserInput = z.object({ uid: Id });
+export type RosterRow = z.infer<typeof RosterRow>;
+
 // ---- Event day ------------------------------------------------------------------------------
 
 export const CheckInMatchInput = z.object({ bracketId: Id, matchId: Id });
@@ -109,4 +126,5 @@ export const ERROR_REASONS = [
   'PLAYERS_NOT_PRESENT',
   'CONTENTION',
 ] as const;
-export type ErrorReason = (typeof ERROR_REASONS)[number];
+/** Server reasons plus engine rule violations (which carry a friendly `hint`). */
+export type ErrorReason = (typeof ERROR_REASONS)[number] | EngineError;

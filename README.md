@@ -4,7 +4,7 @@ A web-based Uno game and tournament system for the NueSynergy **Connections** ev
 
 Employees sign in with their `@nuesynergy.com` email and play **ranked qualifier games** online in the weeks before the event. The qualifier leaderboard **seeds a bracket**, and the bracket is played live on the app during the in-office event. A big-screen view shows the bracket in the office.
 
-> **Status:** Week 1 (foundation). The game engine, security rules, profile/sign-in flow and effects gallery are in; the lobby and live games land in Week 2. See the [delivery plan](docs/engineering/delivery-plan.md).
+> **Status:** Week 2 (game loop). Sign-in, profiles, lobby, Quick Match, live server-validated games, practice vs bots and the rules sheet work end-to-end against the emulators. Ranked leaderboard lands in Week 3. See the [delivery plan](docs/engineering/delivery-plan.md).
 
 ## Documentation
 
@@ -65,5 +65,8 @@ To sign in, enter any `@nuesynergy.com` address, then open the sign-in link from
 
 Grant an admin: `node scripts/grant-admin.ts someone@nuesynergy.com --project <project-id>`
 (set `FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099` to target the emulator).
+
+Play a real multiplayer game locally: create a table in the browser, then add a scripted opponent with
+`npm run bot -- <gameId> Bella` (it joins through the real callables and plays with the engine's bot policy).
 
 Try the effects: open **/dev/effects** — deal, fan, throw and draw with Full / Reduced / Off modes.
