@@ -5,6 +5,8 @@ import {
   SaveProfileInput,
   groupKey,
   isCompanyEmail,
+  nextUnoHour,
+  startOfDayMs,
   placementCounts,
   placementPoints,
   qualifierSummary,
@@ -93,5 +95,32 @@ describe('schemas', () => {
         .success,
     ).toBe(false);
     expect(CreateTableInput.safeParse({ maxSeats: 5, requestedMode: 'ranked' }).success).toBe(false);
+  });
+});
+
+describe('time (season time zone)', () => {
+  const TZ = 'America/Chicago';
+  const hours = [
+    { days: [1, 2, 3, 4, 5], start: '12:00', end: '12:45' },
+    { days: [1, 2, 3, 4, 5], start: '16:00', end: '16:30' },
+  ];
+
+  it('finds local midnight across DST', () => {
+    expect(new Date(startOfDayMs(Date.UTC(2026, 6, 15, 15), TZ)).toISOString()).toBe('2026-07-15T05:00:00.000Z');
+    expect(new Date(startOfDayMs(Date.UTC(2026, 11, 1, 3), TZ)).toISOString()).toBe('2026-11-30T06:00:00.000Z');
+  });
+
+  it('reports a live Uno Hour, the next one today, and skips weekends', () => {
+    // Wed 2026-10-14 12:10 CDT = 17:10 UTC → live lunch slot
+    const live = nextUnoHour(Date.UTC(2026, 9, 14, 17, 10), hours, TZ)!;
+    expect(live.live).toBe(true);
+    expect(new Date(live.startMs).toISOString()).toBe('2026-10-14T17:00:00.000Z');
+    // Same day 13:00 CDT → next is 16:00 CDT = 21:00 UTC
+    const next = nextUnoHour(Date.UTC(2026, 9, 14, 18, 0), hours, TZ)!;
+    expect(next.live).toBe(false);
+    expect(new Date(next.startMs).toISOString()).toBe('2026-10-14T21:00:00.000Z');
+    // Fri 2026-10-16 17:00 CDT → Monday 12:00 CDT (Oct 19 17:00 UTC)
+    const monday = nextUnoHour(Date.UTC(2026, 9, 16, 22, 0), hours, TZ)!;
+    expect(new Date(monday.startMs).toISOString()).toBe('2026-10-19T17:00:00.000Z');
   });
 });

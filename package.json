@@ -19,7 +19,8 @@
     "test": "npm run test --workspaces --if-present",
     "test:rules": "firebase emulators:exec --only firestore,database --project demo-nue-uno \"vitest run --config rules-tests/vitest.config.ts\"",
     "ci": "npm run lint && npm run typecheck && npm test && npm run test:rules && npm run build",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "bot": "esbuild scripts/emulator-bot.ts --bundle --platform=node --format=esm --target=node22 --outfile=node_modules/.cache/nue-uno/emulator-bot.mjs --log-level=warning && node node_modules/.cache/nue-uno/emulator-bot.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

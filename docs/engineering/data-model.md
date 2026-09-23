@@ -107,6 +107,8 @@ Realtime Database
 | `hostUid` | string | |
 | `bracketId`, `matchId`, `matchGameNumber`, `physicalTable` | \| null | Bracket games only |
 | `seats` | array of `{ uid, displayName, avatarId, avatarColor, department }` | Turn order when `direction = 1` |
+| `seatUids` | string[] | Mirror of seat uids, so lobby logic doesn't depend on engine state |
+| `autoStart` | boolean | Quick Match tables start themselves when full |
 | `maxSeats` | 2–4 | |
 | `handCounts` | map `uid → n` | |
 | `topCard`, `currentColor`, `direction`, `turnUid`, `phase` | | See the engine |
