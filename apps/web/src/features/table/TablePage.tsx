@@ -7,6 +7,10 @@ import { useDoc } from '../../hooks/firestore';
 import { Avatar } from '../../ui/Avatar';
 import { Button, ErrorText, Logo, Panel, Screen } from '../../ui/primitives';
 import { OnlineGame, type GameDocData } from '../game/OnlineGame';
+import { lazy, Suspense } from 'react';
+import { LiveOverlays } from '../live/LiveOverlays';
+
+const PresenceBeacon = lazy(() => import('../live/PresenceWidgets').then((m) => ({ default: m.PresenceBeacon })));
 
 interface LobbyDoc extends GameDocData {
   hostUid: string;
@@ -21,6 +25,12 @@ interface LobbyDoc extends GameDocData {
 export function TablePage() {
   const { gameId = '' } = useParams();
   const game = useDoc<LobbyDoc>(`games/${gameId}`);
+  const seated = useSession((s) => !!s.user && !!game.data?.seatUids?.includes(s.user.uid));
+  const beacon = (
+    <Suspense fallback={null}>
+      <PresenceBeacon activity={game.data?.status === 'in_progress' && seated ? 'game' : 'spectating'} gameId={gameId} />
+    </Suspense>
+  );
 
   if (game.data === undefined) return <Screen><Logo /></Screen>;
   if (game.data === null) {
@@ -33,14 +43,25 @@ export function TablePage() {
       </Screen>
     );
   }
-  if (game.data.status === 'lobby') return <PreGameTable gameId={gameId} game={game.data} />;
+  if (game.data.status === 'lobby') {
+    return (
+      <>
+        {beacon}
+        <LiveOverlays />
+        <PreGameTable gameId={gameId} game={game.data} />
+      </>
+    );
+  }
   return (
-    <OnlineGame
-      gameId={gameId}
-      game={game.data}
-      fromCache={game.fromCache}
-      pending={!!game.metadata?.hasPendingWrites}
-    />
+    <>
+      {beacon}
+      <OnlineGame
+        gameId={gameId}
+        game={game.data}
+        fromCache={game.fromCache}
+        pending={!!game.metadata?.hasPendingWrites}
+      />
+    </>
   );
 }
 

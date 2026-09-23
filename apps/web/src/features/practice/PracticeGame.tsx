@@ -13,6 +13,7 @@ import { ApiError } from '../../api/call';
 import { useSession } from '../../auth/session';
 import type { TableActions, TableViewModel } from '../../game/view';
 import { Button, Panel, Screen } from '../../ui/primitives';
+import type { FxEvent } from '../game/EffectsLayer';
 import { TableView } from '../game/TableView';
 
 const BOTS = [
@@ -56,6 +57,7 @@ function LocalTable({ botCount, onRestart }: { botCount: number; onRestart: () =
   const random = useMemo(() => createRandom(seed ^ 0x9e37), [seed]);
   const [state, setState] = useState<GameState>(() => createGame([ME, ...bots.map((b) => b.uid)], seed).state);
   const [lastPlayedBy, setLastPlayedBy] = useState<string | null>(null);
+  const [fx, setFx] = useState<FxEvent[]>([]);
   const stateRef = useRef(state);
   useLayoutEffect(() => {
     stateRef.current = state;
@@ -67,6 +69,10 @@ function LocalTable({ botCount, onRestart }: { botCount: number; onRestart: () =
     stateRef.current = res.state;
     const played = [...res.events].reverse().find((e) => e.type === 'card_played');
     if (played?.uid) setLastPlayedBy(played.uid);
+    setFx((prev) => {
+      let seq = prev.at(-1)?.seq ?? 0;
+      return [...prev, ...res.events.map((e) => ({ ...e, seq: ++seq }))].slice(-12);
+    });
     setState(res.state);
   }, []);
 
@@ -146,5 +152,5 @@ function LocalTable({ botCount, onRestart }: { botCount: number; onRestart: () =
     };
   }, [apply, onRestart]);
 
-  return <TableView view={view} actions={actions} serverNow={Date.now} totalTurnMs={30_000} exitTo="/" />;
+  return <TableView view={view} actions={actions} serverNow={Date.now} totalTurnMs={30_000} exitTo="/" events={fx} />;
 }

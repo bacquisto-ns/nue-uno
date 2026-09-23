@@ -175,7 +175,7 @@ apps/web/src/
 
 **Routes:** `/signin`, `/auth/finish`, `/welcome`, `/` (lobby, or Event Hub when the season is in `event`), `/t/:gameId`, `/practice`, `/tutorial`, `/rules`, `/leaderboard`, `/passport`, `/profile`, `/bracket`, `/pickem`, `/table/:n` (QR check-in), `/watch/:gameId`, `/tv`, `/wrapped`, `/hall-of-fame`, `/admin/*`, `/dev/effects`.
 
-**Code splitting:** the lobby bundle must stay ≤ 250 KB gzipped. `game`, `tv`, `admin`, `wrapped`, and the motion and audio modules are lazy-loaded chunks.
+**Code splitting:** first load (sign-in) ≤ 150 KB gzipped; lobby total ≤ 325 KB gzipped. Firestore is loaded only after sign-in. `game`, `tv`, `admin`, `wrapped`, and the motion and audio modules are lazy-loaded chunks.
 
 **Card rendering:** SVG card faces from a single sprite sheet, with colorblind-safe shapes (red ◆, yellow ●, green ▲, blue ■) and the Nue Wild art.
 

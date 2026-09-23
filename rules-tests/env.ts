@@ -4,18 +4,22 @@ import { initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/
 
 export const PROJECT_ID = 'demo-nue-uno';
 
+/** Emulator address from `firebase emulators:exec` (firebase.test.json ports by default). */
+function hostPort(env: string | undefined, fallback: number) {
+  const [host, port] = (env ?? `127.0.0.1:${fallback}`).split(':');
+  return { host: host!, port: Number(port) };
+}
+
 export function createEnv(): Promise<RulesTestEnvironment> {
   return initializeTestEnvironment({
     projectId: PROJECT_ID,
     firestore: {
       rules: readFileSync(resolve(process.cwd(), 'firestore.rules'), 'utf8'),
-      host: '127.0.0.1',
-      port: 8080,
+      ...hostPort(process.env.FIRESTORE_EMULATOR_HOST, 8180),
     },
     database: {
       rules: readFileSync(resolve(process.cwd(), 'database.rules.json'), 'utf8'),
-      host: '127.0.0.1',
-      port: 9000,
+      ...hostPort(process.env.FIREBASE_DATABASE_EMULATOR_HOST, 9100),
     },
   });
 }

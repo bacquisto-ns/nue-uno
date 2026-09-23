@@ -1,6 +1,8 @@
 {
   "projects": {
     "default": "demo-nue-uno",
-    "demo": "demo-nue-uno"
+    "demo": "demo-nue-uno",
+    "dev": "nue-uno-dev",
+    "prod": "nue-uno-prod"
   }
 }

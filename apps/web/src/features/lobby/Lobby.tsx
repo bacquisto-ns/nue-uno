@@ -11,6 +11,12 @@ import { spring, stagger } from '../../motion/tokens';
 import { Avatar } from '../../ui/Avatar';
 import { Button, ErrorText, Logo, Panel } from '../../ui/primitives';
 import type { GameDocData } from '../game/OnlineGame';
+import { lazy, Suspense } from 'react';
+import { LiveOverlays } from '../live/LiveOverlays';
+
+// Presence pulls in the Realtime Database SDK (~37 KB gz); load it after the lobby is on screen.
+const PresenceBeacon = lazy(() => import('../live/PresenceWidgets').then((m) => ({ default: m.PresenceBeacon })));
+const OnlineNow = lazy(() => import('../live/PresenceWidgets').then((m) => ({ default: m.OnlineNow })));
 
 type OpenTable = GameDocData & {
   hostUid: string;
@@ -90,6 +96,7 @@ export function Lobby() {
 
   return (
     <main className="felt-grain mx-auto flex min-h-dvh w-full max-w-3xl flex-col gap-5 px-4 py-6">
+      <LiveOverlays />
       <header className="flex items-center justify-between gap-3">
         <Logo size="sm" />
         <Link to="/profile" className="flex items-center gap-3 rounded-full bg-white/5 py-1 pl-1 pr-4 ring-1 ring-white/10">
@@ -107,6 +114,17 @@ export function Lobby() {
       )}
 
       <UnoHourCard />
+      {user && (
+        <Suspense fallback={<div className="h-[54px] rounded-2xl bg-white/5" />}>
+          <PresenceBeacon activity="lobby" />
+          <OnlineNow myUid={user.uid} />
+        </Suspense>
+      )}
+
+      <nav className="grid grid-cols-2 gap-3">
+        <Link to="/leaderboard" className="rounded-2xl bg-white/5 px-4 py-3 font-semibold ring-1 ring-white/10 hover:bg-white/10">🏆 Leaderboard</Link>
+        <Link to="/passport" className="rounded-2xl bg-white/5 px-4 py-3 font-semibold ring-1 ring-white/10 hover:bg-white/10">🛂 My Passport</Link>
+      </nav>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <Button className="py-4 text-lg" disabled={!!busy} onClick={() => void go('quick', gameApi.quickMatch)}>

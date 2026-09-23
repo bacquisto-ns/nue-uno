@@ -19,6 +19,7 @@ import { Avatar } from '../../ui/Avatar';
 import { Card, CARD_COLORS, cardLabel, ColorShape } from '../../ui/Card';
 import { Button } from '../../ui/primitives';
 import { ColorPicker } from './ColorPicker';
+import { EffectsLayer, type FxEvent } from './EffectsLayer';
 import { TurnRing } from './TurnRing';
 
 const CARD_W = 84;
@@ -72,9 +73,11 @@ export interface TableViewProps {
   /** Shown when the network is down (G6). */
   offline?: boolean;
   exitTo?: string;
+  /** Recent game events (ascending seq) that drive the signature effects. */
+  events?: FxEvent[];
 }
 
-export function TableView({ view, actions, serverNow, totalTurnMs, haptics = true, offline, exitTo = '/' }: TableViewProps) {
+export function TableView({ view, actions, serverNow, totalTurnMs, haptics = true, offline, exitTo = '/', events }: TableViewProps) {
   const mode = useEffectsMode();
   useFpsGovernor(mode === 'full');
   const full = mode === 'full';
@@ -91,6 +94,8 @@ export function TableView({ view, actions, serverNow, totalTurnMs, haptics = tru
   const [toast, setToast] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const [shake, setShake] = useState(0);
+  const onShake = useCallback(() => setShake((s) => s + 1), []);
 
   // Pile history: remember the last few top cards we've seen for the messy-stack look.
   const [pile, setPile] = useState<{ card: CardModel; by: string | null }[]>([]);
@@ -193,7 +198,11 @@ export function TableView({ view, actions, serverNow, totalTurnMs, haptics = tru
   const finished = view.status !== 'in_progress';
 
   return (
-    <main className="felt-grain relative flex h-dvh flex-col overflow-hidden select-none">
+    <m.main
+      className="felt-grain relative flex h-dvh flex-col overflow-hidden select-none"
+      animate={shake ? { x: shake % 2 ? [0, -8, 8, -5, 5, 0] : [0, 8, -8, 5, -5, 0] } : { x: 0 }}
+      transition={{ duration: 0.28 }}
+    >
       <m.div
         aria-hidden
         className="pointer-events-none absolute inset-0"
@@ -254,7 +263,7 @@ export function TableView({ view, actions, serverNow, totalTurnMs, haptics = tru
             <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs text-ink-muted">{view.drawPileCount}</span>
           </button>
 
-          <div className="relative" style={{ width: CARD_W, height: CARD_W * 1.5 }} aria-label={view.topCard ? `Top card: ${cardLabel(view.topCard)}` : 'Discard pile'} role="img">
+          <div data-anchor="pile" className="relative" style={{ width: CARD_W, height: CARD_W * 1.5 }} aria-label={view.topCard ? `Top card: ${cardLabel(view.topCard)}` : 'Discard pile'} role="img">
             <AnimatePresence initial={false}>
               {pile.map(({ card, by }, i) => {
                 const rest = tilt(card.id);
@@ -435,8 +444,9 @@ export function TableView({ view, actions, serverNow, totalTurnMs, haptics = tru
         </div>
       )}
 
+      <EffectsLayer events={events ?? []} mode={mode} onShake={onShake} />
       {finished && <Results view={view} exitTo={exitTo} full={full} />}
-    </main>
+    </m.main>
   );
 }
 
@@ -466,7 +476,7 @@ function SeatBadge({
   full: boolean;
 }) {
   return (
-    <div className={`flex flex-col items-center gap-1 ${seat.forfeited ? 'opacity-40' : ''}`}>
+    <div data-seat={seat.uid} className={`flex flex-col items-center gap-1 ${seat.forfeited ? 'opacity-40' : ''}`}>
       <div className="relative" style={seat.cardCount === 1 ? { animation: 'uno-pulse 1.6s infinite', borderRadius: 9999 } : undefined}>
         <Avatar avatarId={seat.avatarId} color={seat.avatarColor} size={52} label={seat.displayName} />
         {isTurn && <TurnRing deadlineMs={deadlineMs} graceMs={graceMs} totalMs={totalMs} serverNow={serverNow} size={52} isMe={false} haptics={false} />}
@@ -519,7 +529,7 @@ function MySeat({
   const me = view.seats.find((s) => s.uid === view.myUid);
   if (!me) return null;
   return (
-    <div className="relative" title="You">
+    <div data-seat={me.uid} className="relative" title="You">
       <Avatar avatarId={me.avatarId} color={me.avatarColor} size={44} label={`${me.displayName} (you)`} />
       {opts.isMyTurn && (
         <TurnRing deadlineMs={view.turnDeadlineMs} graceMs={view.graceMs} totalMs={totalMs} serverNow={serverNow} size={44} isMe haptics={haptics} />

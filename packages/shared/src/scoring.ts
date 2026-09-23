@@ -1,6 +1,6 @@
 import { DEFAULT_SEASON_SETTINGS } from './constants.js';
 
-type Scoring = {
+export type Scoring = {
   pointsByTableSize: Record<string, readonly number[]>;
   bestN: number;
   minGames: number;

@@ -292,7 +292,7 @@ WCAG 2.1 AA contrast. Colorblind-safe symbols on cards and color indicators (G9)
 |---|---|
 | Frame rate | 60fps during card animations on an iPhone 12 or Pixel 6a class phone. 30fps is the floor on older devices. |
 | Adaptive quality | If the average frame rate is under 45 for 2 seconds, drop to Reduced effects for the session and show a small notice |
-| Initial load | Lobby JavaScript ≤ 250 KB gzipped. The game, TV, effects, and sounds load when needed. Largest contentful paint under 2.5s on 4G. |
+| Initial load | **First load (sign-in) ≤ 150 KB** gzipped JavaScript. **Lobby total ≤ 325 KB** gzipped, including Firestore, which loads only after sign-in. The game, TV, effects, and sounds load when needed. Largest contentful paint under 2.5s on 4G. *(Revised 2026-09-23: the Firestore SDK alone is ~162 KB gz in Firebase 12.)* |
 | Animation technique | Animate only `transform` and `opacity`. Confetti and particles are capped at 150 on phones and 600 on the TV. |
 | Audio | Sounds combined into one sprite file, ≤ 400 KB, loaded only after sound is turned on |
 | Effect timing | Everyday effects ≤ 400ms. Signature effects ≤ 1200ms. Effects never block input, and if events pile up, the queue skips ahead to the latest state (see the motion spec). |
@@ -361,6 +361,8 @@ House rules and team play. Free-text chat. Multiple seasons or archives beyond t
 | 12 | What TV or projector is in the event space, what's its resolution, can it play audio, and is the venue Wi-Fi tested? | Facilities | 1080p+ with audio, Wi-Fi tested in the Week 5 dry run |
 
 ## 17. Changelog
+
+**v2.1 (2026-09-23):** performance budget revised to first load ≤ 150 KB / lobby ≤ 325 KB (gz), approved by the product owner.
 
 **v2 (2026-09-23)** addresses the 24 findings in the [v1 review](reviews/PRD-v1-review.md):
 - **Added:** Connection Passport, Department Cup, Uno Hours, presence and nudges, Pick'em, crowd reactions, Selection Show, awards, Uno Wrapped, emotes, tutorial and bots, Event Hub, QR check-in, Mission Control, pause and broadcast, TV director, paper fallback, roster, PWA, Teams posts, run-of-show, visual direction, performance budget, instrumentation, launch plan, cut line

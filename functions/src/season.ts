@@ -1,4 +1,4 @@
-import { DEFAULT_SEASON_SETTINGS } from '@nue-uno/shared';
+import { DEFAULT_SEASON_SETTINGS, type UnoHourWindow } from '@nue-uno/shared';
 import { db } from './admin.js';
 
 export const DEFAULT_SEASON_ID = 'connections-2026';
@@ -14,6 +14,8 @@ export interface Season {
   qualifierEndMs: number | null;
   pausedAtMs: number | null;
   timezone: string;
+  unoHours: UnoHourWindow[];
+  cup: { topN: number; participationBonus: number; participationMinGames: number };
   timers: Settings['timers'];
   finalLap: Settings['finalLap'];
   scoring: {
@@ -41,6 +43,8 @@ export async function getSeason(options: { fresh?: boolean } = {}): Promise<Seas
     qualifierEndMs: doc.qualifierEnd?.toMillis?.() ?? null,
     pausedAtMs: doc.pausedAt?.toMillis?.() ?? null,
     timezone: doc.timezone ?? DEFAULT_SEASON_SETTINGS.timezone,
+    unoHours: doc.unoHours ?? DEFAULT_SEASON_SETTINGS.unoHours.map((w) => ({ ...w, days: [...w.days] })),
+    cup: { ...DEFAULT_SEASON_SETTINGS.cup, ...doc.cup },
     timers: { ...DEFAULT_SEASON_SETTINGS.timers, ...doc.timers },
     finalLap: { ...DEFAULT_SEASON_SETTINGS.finalLap, ...doc.finalLap },
     scoring: {

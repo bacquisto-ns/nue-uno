@@ -12,6 +12,8 @@ const Lobby = page(() => import('./features/lobby/Lobby'), 'Lobby');
 const TablePage = page(() => import('./features/table/TablePage'), 'TablePage');
 const PracticeGame = page(() => import('./features/practice/PracticeGame'), 'PracticeGame');
 const RulesPage = page(() => import('./features/rules/RulesPage'), 'RulesPage');
+const LeaderboardPage = page(() => import('./features/leaderboard/LeaderboardPage'), 'LeaderboardPage');
+const PassportPage = page(() => import('./features/passport/PassportPage'), 'PassportPage');
 const ProfileForm = lazy(() =>
   import('./features/onboarding/ProfileForm').then((m) => ({ default: m.ProfileForm })),
 );
@@ -28,6 +30,8 @@ export const router = createBrowserRouter([
   { path: '/t/:gameId', element: authed(<TablePage />) },
   { path: '/practice', element: authed(<PracticeGame />) },
   { path: '/profile', element: authed(<ProfileForm mode="edit" />) },
+  { path: '/leaderboard', element: authed(<LeaderboardPage />) },
+  { path: '/passport', element: authed(<PassportPage />) },
   { path: '/rules', element: lazyEl(<RulesPage />) },
   { path: '/dev/effects', element: lazyEl(<EffectsGallery />) },
   { path: '*', element: <Navigate to="/" replace /> },

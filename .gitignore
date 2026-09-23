@@ -12,6 +12,8 @@ coverage/
 .env
 .env.*
 !.env.example
+!apps/web/.env.dev
+!apps/web/.env.prod
 *-service-account*.json
 
 # Firebase

@@ -8,6 +8,16 @@ import { getSeason } from '../season.js';
 import type { GameDoc, Seat } from './model.js';
 import { gameRef, loadGame } from './store.js';
 import { planStart, startInTx } from './start.js';
+import { nudgeIfForming } from '../social/nudges.js';
+import { logger } from 'firebase-functions/v2';
+
+/** Best-effort: a nudge failure must never fail the player's own request. */
+function nudge(gameId: string): Promise<void> {
+  return nudgeIfForming(gameId).then(
+    () => undefined,
+    (err) => logger.warn('nudge failed', { gameId, err: String(err) }),
+  );
+}
 
 type Req = Pick<CallableRequest<unknown>, 'auth' | 'data'>;
 
@@ -112,7 +122,10 @@ export async function joinTableCore(uid: string, gameId: string): Promise<{ ok: 
 
 export async function joinTableHandler(req: Req) {
   const { uid } = requirePlayer(req);
-  return joinTableCore(uid, parse(GameRef, req.data).gameId);
+  const { gameId } = parse(GameRef, req.data);
+  const res = await joinTableCore(uid, gameId);
+  if (!res.started) await nudge(gameId);
+  return res;
 }
 
 export async function leaveTableHandler(req: Req): Promise<{ ok: true }> {
@@ -141,6 +154,7 @@ export async function leaveTableHandler(req: Req): Promise<{ ok: true }> {
     }
     tx.set(db.doc(`users/${uid}`), { activeGameId: null }, { merge: true });
   });
+  await nudge(gameId);
   return { ok: true };
 }
 

@@ -14,6 +14,20 @@ import { useEffectsMode, useEffectsStore, type EffectsMode } from '../../motion/
 import { dur, ease, spring, stagger } from '../../motion/tokens';
 import { Card, CARD_COLORS, ColorShape } from '../../ui/Card';
 import { Button } from '../../ui/primitives';
+import { EffectsLayer, type FxEvent } from '../game/EffectsLayer';
+
+const TARGET = 'gallery-target';
+const DEMOS: { label: string; event: Omit<FxEvent, 'seq'> }[] = [
+  { label: 'Wild (X5)', event: { type: 'card_played', card: { id: 'w', color: 'wild', value: 'wild' }, color: 'blue' } },
+  { label: 'Skip (X6)', event: { type: 'card_played', card: { id: 's', color: 'red', value: 'skip' }, targetUid: TARGET } },
+  { label: 'Reverse (X6)', event: { type: 'card_played', card: { id: 'r', color: 'red', value: 'reverse' } } },
+  { label: '+2 (X6)', event: { type: 'card_played', card: { id: 'd', color: 'green', value: 'draw2' }, targetUid: TARGET } },
+  { label: '+4 IMPACT (X7)', event: { type: 'card_played', card: { id: 'w4', color: 'wild', value: 'wild4' }, color: 'red', targetUid: TARGET } },
+  { label: 'UNO! (X8)', event: { type: 'uno_called', uid: TARGET } },
+  { label: 'CAUGHT! (X9)', event: { type: 'uno_caught', uid: 'nobody', targetUid: TARGET } },
+  { label: 'Final Lap (X11)', event: { type: 'final_lap' } },
+  { label: 'Victory (X12)', event: { type: 'game_finished' } },
+];
 
 const CARD_W = 84;
 /** Fresh shuffle each visit; seeded once per page load (outside render, so renders stay pure). */
@@ -51,6 +65,9 @@ export function EffectsGallery() {
   const [selected, setSelected] = useState<string | null>(null);
   const [color, setColor] = useState<Color>('red');
   const [dealKey, setDealKey] = useState(0);
+  const [fx, setFx] = useState<FxEvent[]>([]);
+  const [shakes, setShakes] = useState(0);
+  const fire = (e: Omit<FxEvent, 'seq'>) => setFx((prev) => [...prev.slice(-8), { ...e, seq: (prev.at(-1)?.seq ?? 0) + 1 }]);
 
   const top = pile.at(-1)?.card;
   const animated = mode === 'full';
@@ -150,7 +167,7 @@ export function EffectsGallery() {
             </AnimatePresence>
           </div>
 
-          <div className="flex flex-col items-center gap-1 text-sm" aria-live="polite">
+          <div data-seat={TARGET} className="flex flex-col items-center gap-1 text-sm" aria-live="polite">
             <span className="grid h-12 w-12 place-items-center rounded-full ring-2 ring-white/40" style={{ background: CARD_COLORS[color].fill, color: CARD_COLORS[color].ink }}>
               <ColorShape color={color} size={18} />
             </span>
@@ -209,10 +226,17 @@ export function EffectsGallery() {
       <footer className="relative z-10 flex flex-wrap justify-center gap-3 p-4">
         <Button onClick={deal}>Deal (X1)</Button>
         <Button variant="ghost" onClick={draw} disabled={!pile.length}>Draw (X4)</Button>
+        <div className="flex w-full flex-wrap justify-center gap-2">
+          {DEMOS.map((d) => (
+            <Button key={d.label} variant="ghost" className="text-sm" onClick={() => fire(d.event)}>{d.label}</Button>
+          ))}
+        </div>
         <p className="w-full text-center text-xs text-ink-muted">
           Tap a card to select (X2) · tap again to throw it (X3) · mode: <strong>{mode}</strong>
         </p>
       </footer>
+      <EffectsLayer events={fx} mode={mode} onShake={() => setShakes((s) => s + 1)} />
+      <span className="sr-only" aria-live="polite">{shakes ? `Shake ${shakes}` : ''}</span>
     </main>
   );
 }

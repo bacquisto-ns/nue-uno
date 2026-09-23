@@ -1,4 +1,5 @@
 import { onCall, type CallableOptions } from 'firebase-functions/v2/https';
+import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { setGlobalOptions } from 'firebase-functions/v2/options';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { approveUserHandler, importRosterHandler } from './admin/roster.js';
@@ -20,7 +21,15 @@ import {
   passTurnHandler,
   playCardHandler,
 } from './game/moves.js';
+import {
+  onLeaderboardEntryWrittenHandler,
+  onResultWrittenHandler,
+  onUserWrittenHandler,
+} from './derived/recompute.js';
 import { saveProfileHandler } from './profile.js';
+import { markInboxSeenHandler } from './social/nudges.js';
+import { teamsDigest, unoHourAnnouncer } from './social/schedules.js';
+import { TEAMS_WEBHOOK_URL } from './teams.js';
 
 setGlobalOptions({ region: 'us-central1', maxInstances: 10 });
 
@@ -56,5 +65,34 @@ export const cleanupStaleGamesDaily = onSchedule(
   { schedule: 'every day 03:00', timeZone: 'America/Chicago' },
   async () => {
     await cleanupStaleGames();
+  },
+);
+
+export const markInboxSeen = onCall((req) => markInboxSeenHandler(req));
+
+// Derived data (ADR-5): recomputed from source, so re-deliveries and voids converge.
+export const onResultWritten = onDocumentWritten('results/{gameId}', (event) =>
+  onResultWrittenHandler(event.data?.before.data(), event.data?.after.data()),
+);
+export const onLeaderboardEntryWritten = onDocumentWritten(
+  { document: 'leaderboard/{seasonId}/entries/{uid}', secrets: [TEAMS_WEBHOOK_URL] },
+  (event) =>
+    onLeaderboardEntryWrittenHandler(event.params.seasonId, event.data?.before.data(), event.data?.after.data()),
+);
+export const onUserWritten = onDocumentWritten('users/{uid}', (event) =>
+  onUserWrittenHandler(event.params.uid, event.data?.after.data()),
+);
+
+// Teams + Uno Hours (ADR-8).
+export const teamsDigestDaily = onSchedule(
+  { schedule: '0 9 * * 1-5', timeZone: 'America/Chicago', secrets: [TEAMS_WEBHOOK_URL] },
+  async () => {
+    await teamsDigest();
+  },
+);
+export const unoHourAnnouncerJob = onSchedule(
+  { schedule: 'every 5 minutes', timeZone: 'America/Chicago', secrets: [TEAMS_WEBHOOK_URL] },
+  async () => {
+    await unoHourAnnouncer();
   },
 );

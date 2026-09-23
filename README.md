@@ -4,7 +4,7 @@ A web-based Uno game and tournament system for the NueSynergy **Connections** ev
 
 Employees sign in with their `@nuesynergy.com` email and play **ranked qualifier games** online in the weeks before the event. The qualifier leaderboard **seeds a bracket**, and the bracket is played live on the app during the in-office event. A big-screen view shows the bracket in the office.
 
-> **Status:** Week 2 (game loop). Sign-in, profiles, lobby, Quick Match, live server-validated games, practice vs bots and the rules sheet work end-to-end against the emulators. Ranked leaderboard lands in Week 3. See the [delivery plan](docs/engineering/delivery-plan.md).
+> **Status:** Week 3 (qualifiers). Live leaderboard, Connection Passport, Department Cup, presence, table-forming nudges, Teams posts and the signature effects are in. Dev is deployed at https://nue-uno-dev.web.app; prod goes live Oct 12.
 
 ## Documentation
 
@@ -62,6 +62,7 @@ To sign in, enter any `@nuesynergy.com` address, then open the sign-in link from
 | `npm run lint` / `npm run typecheck` | ESLint / TypeScript across all workspaces |
 | `npm run build` | Bundle functions (esbuild) and the web app (Vite) |
 | `npm run ci` | Everything CI runs |
+| `npm run deploy:dev` / `deploy:prod` | Build and deploy rules, indexes, functions and hosting to `nue-uno-dev` / `nue-uno-prod` |
 
 Grant an admin: `node scripts/grant-admin.ts someone@nuesynergy.com --project <project-id>`
 (set `FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099` to target the emulator).

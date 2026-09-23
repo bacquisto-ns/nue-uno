@@ -14,7 +14,7 @@ Related: [Architecture](architecture.md) · [Experience & Motion §11](../design
 | Web components | Vitest + React Testing Library | Hand playability, color picker, UNO and Catch buttons, turn ring timing (starts after the animation queue empties), `EventQueue` fast-forward rules, effect mode switching | Required on PRs |
 | Effects | Playwright on `/dev/effects` | Final-frame visual snapshot of each moment in Full, Reduced, and Off. An assertion that input stays enabled during every effect. | Required on PRs that touch `motion/` |
 | End-to-end | Playwright against emulators | (1) Sign in with an email link, first-run setup, lobby. (2) Two browser contexts play a full seeded game to the end. (3) A Final Lap game with the fake clock. (4) Admin generates and locks a bracket, players check in with QR `/table/1`, the TV shows advancement. (5) The tutorial completes. | Required before merging to `main` |
-| Performance | Lighthouse CI on the lobby. A manual trace on the test devices. | Lobby JS ≤ 250 KB gzipped, largest paint < 2.5s on 4G. 60fps during the X3 and X7 effects on an iPhone 12 and Pixel 6a. | Budget checked in CI. Device check weekly from Week 3. |
+| Performance | Lighthouse CI on the lobby. A manual trace on the test devices. | First load ≤ 150 KB and lobby total ≤ 325 KB gzipped, largest paint < 2.5s on 4G. 60fps during the X3 and X7 effects on an iPhone 12 and Pixel 6a. | Budget checked in CI. Device check weekly from Week 3. |
 | Load | `scripts/loadtest.ts` against **dev**. It uses the engine's `botAction` through real callables. | 12 tables × 4 bots plus 40 simulated spectators (Firestore listeners and RTDB reactions) for 15 minutes. Measures p95 time from call to snapshot. | Week 5. Target p95 < 500ms. |
 | Event dry run | Real people and the real TV | About 8 players, a full 2-round bracket, Selection Show, Pick'em, reactions, pause/resume, awards | Week 5 |
 
@@ -48,13 +48,13 @@ Open `/dev/effects` for the effects gallery and `/tv?demo=1` for the TV with bot
 | Roster | A fake roster CSV | The real HR roster, imported through the admin UI and **never committed** |
 | Teams webhook | A test channel | `#nue-uno` |
 
-Web config values are not secrets and come from GitHub **variables** (`VITE_FIREBASE_*`, `VITE_DATABASE_URL`). Server secrets live in Secret Manager: `TEAMS_WEBHOOK_URL`.
+Web config values are public by design, so they're committed as Vite mode files: `apps/web/.env.dev` and `apps/web/.env.prod` (`vite build --mode dev|prod`). Server secrets live in Secret Manager: `TEAMS_WEBHOOK_URL`. Deploy with `npm run deploy:dev` or `npm run deploy:prod`.
 
 ### One-time setup (per project)
 1. Create the project and switch to Blaze. Set the budget alert.
 2. Create Firestore (Native, `nam5`) and the Realtime Database (`us-central1`).
 3. Turn on the Auth email-link sign-in method, email enumeration protection, and the authorized domains. Customize the email template (sender "Nue Uno"). Ask IT to allowlist the sender.
-4. Register the Web app, and copy its config into the GitHub variables.
+4. Register the Web app (`firebase apps:create WEB`) and put its config in `apps/web/.env.<alias>`.
 5. `firebase functions:secrets:set TEAMS_WEBHOOK_URL`.
 6. Deploy (below). Run `scripts/grant-admin.ts <email>` for each admin. Run `scripts/seed.ts --prod-init` to create `config/app` and the season.
 7. Import the roster in Admin → Roster (CSV).

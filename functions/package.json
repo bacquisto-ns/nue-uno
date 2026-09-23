@@ -10,7 +10,7 @@
   "scripts": {
     "build": "esbuild src/index.ts --bundle --platform=node --target=node22 --format=esm --outfile=lib/index.js --packages=external --alias:@nue-uno/engine=../packages/engine/src/index.ts --alias:@nue-uno/shared=../packages/shared/src/index.ts",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "firebase emulators:exec --config ../firebase.json --only auth,firestore --project demo-nue-uno \"vitest run\""
+    "test": "firebase emulators:exec --config ../firebase.test.json --only auth,firestore,database --project demo-nue-uno \"vitest run\""
   },
   "devDependencies": {
     "esbuild": "^0.28.2"
