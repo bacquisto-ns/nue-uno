@@ -10,7 +10,9 @@ Employees sign in with their `@nuesynergy.com` email and play **ranked qualifier
 
 | Doc | What it covers |
 |---|---|
-| [PRD](docs/PRD.md) | Goals, personas, user stories, acceptance criteria, non-functional requirements, open questions |
+| [PRD (v2)](docs/PRD.md) | Goals, personas, user stories, acceptance criteria, run-of-show, metrics, cut line, open questions |
+| [Experience & Motion spec](docs/design/experience-and-motion.md) | Motion tokens, the moment catalog (animations, sound, haptics), TV broadcast package, performance budget |
+| [PRD v1 review](docs/reviews/PRD-v1-review.md) | Critical review of v1: 24 findings and the engineering-doc follow-ups |
 | [Architecture](docs/engineering/architecture.md) | Stack, system diagram, key decisions (server-authoritative play, auth, timeouts) |
 | [Data model](docs/engineering/data-model.md) | Firestore collections, fields, indexes, security rules |
 | [Game engine](docs/engineering/game-engine.md) | Uno rules spec, state machine, pure-TypeScript engine API |
