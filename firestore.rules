@@ -1,0 +1,48 @@
+rules_version = '2';
+
+// Every Firestore write goes through Cloud Functions (Admin SDK bypasses these rules).
+// Clients only ever read. See docs/engineering/data-model.md#security-rules.
+service cloud.firestore {
+  match /databases/{db}/documents {
+
+    function signedInEmployee() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.matches('.*@nuesynergy[.]com$');
+    }
+    function isPlayer() { return signedInEmployee() && request.auth.token.active == true; }
+    function isAdmin()  { return signedInEmployee() && request.auth.token.admin == true; }
+
+    // Default deny.
+    match /{document=**} { allow read, write: if false; }
+
+    match /config/{doc}   { allow read: if signedInEmployee(); }
+    match /users/{uid}    { allow read: if isPlayer() || (signedInEmployee() && request.auth.uid == uid); }
+    match /roster/{email} { allow read: if isAdmin(); }
+    match /auditLog/{id}  { allow read: if isAdmin(); }
+
+    match /seasons/{id}                  { allow read: if isPlayer(); }
+    match /results/{id}                  { allow read: if isPlayer(); }
+    match /leaderboard/{s}/entries/{uid} { allow read: if isPlayer(); }
+    match /departmentCup/{s}/entries/{d} { allow read: if isPlayer(); }
+    match /passport/{uid}                { allow read: if isPlayer(); }
+    match /playerStats/{id}              { allow read: if isPlayer(); }
+    match /brackets/{b}                  { allow read: if isPlayer(); }
+    match /brackets/{b}/matches/{m}      { allow read: if isPlayer(); }
+    match /picks/{id}                    { allow read: if isPlayer(); }
+    match /pickem/{b}/entries/{uid}      { allow read: if isPlayer(); }
+    match /announcements/{id}            { allow read: if isPlayer(); }
+    match /tv/{doc}                      { allow read: if isPlayer(); }
+    match /awards/{s}                    { allow read: if isPlayer(); }
+    match /hallOfFame/{s}                { allow read: if isPlayer(); }
+    match /wrapped/{id}                  { allow read: if isPlayer(); }
+    match /inbox/{uid}/items/{item}      { allow read: if isPlayer() && request.auth.uid == uid; }
+
+    match /games/{gameId} {
+      allow read: if isPlayer();
+      match /events/{seq} { allow read: if isPlayer(); }
+      match /hands/{uid}  { allow read: if isPlayer() && request.auth.uid == uid; }
+      // /private/* falls through to default deny: the deck and RNG are server-only.
+    }
+  }
+}

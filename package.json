@@ -1,0 +1,39 @@
+{
+  "name": "nue-uno",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*",
+    "functions"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "npm run dev -w @nue-uno/web",
+    "emulators": "npm run build -w @nue-uno/functions && firebase emulators:start --project demo-nue-uno --import=./emulator-data --export-on-exit",
+    "build": "npm run build -w @nue-uno/functions && npm run build -w @nue-uno/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "eslint .",
+    "test": "npm run test --workspaces --if-present",
+    "test:rules": "firebase emulators:exec --only firestore,database --project demo-nue-uno \"vitest run --config rules-tests/vitest.config.ts\"",
+    "ci": "npm run lint && npm run typecheck && npm test && npm run test:rules && npm run build",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "@types/node": "^26.6.2",
+    "@vitest/coverage-v8": "^5.0.1",
+    "eslint": "^10.11.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "fast-check": "^4.10.2",
+    "firebase": "^12.19.0",
+    "globals": "^17.12.0",
+    "prettier": "^3.9.9",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.70.1",
+    "vitest": "^5.0.1"
+  }
+}

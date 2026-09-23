@@ -1,0 +1,80 @@
+@import 'tailwindcss';
+
+/* Design tokens — see docs/design/experience-and-motion.md and PRD §8 (visual direction). */
+@theme {
+  --font-display: 'Baloo 2', ui-rounded, system-ui, sans-serif;
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+
+  --color-felt-950: #06101c;
+  --color-felt-900: #0b1a2b;
+  --color-felt-800: #10263d;
+  --color-felt-700: #14344f;
+  --color-felt-600: #1a4a63;
+  --color-felt-500: #1f5f73;
+
+  /* Card colors, tuned for contrast on the dark table. */
+  --color-card-red: #e5484d;
+  --color-card-yellow: #f5b400;
+  --color-card-green: #2fa35b;
+  --color-card-blue: #2d7ff9;
+
+  --color-gold: #f5c542;
+  --color-ink: #e8eef6;
+  --color-ink-muted: #9fb0c3;
+}
+
+:root {
+  color-scheme: dark;
+  /* Ambient tint follows the current color (X16); set by the game screen. */
+  --table-tint: transparent;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+  background:
+    radial-gradient(ellipse at 50% 35%, var(--table-tint), transparent 70%),
+    radial-gradient(ellipse at 50% 30%, var(--color-felt-600) 0%, var(--color-felt-900) 55%, var(--color-felt-950) 100%);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: 0.01em;
+}
+
+/* Subtle animated grain (X16). Disabled for reduced motion. */
+.felt-grain::before {
+  content: '';
+  position: fixed;
+  inset: -50%;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  animation: grain 8s steps(8) infinite;
+}
+
+@keyframes grain {
+  0% { transform: translate(0, 0); }
+  25% { transform: translate(-3%, 2%); }
+  50% { transform: translate(2%, -3%); }
+  75% { transform: translate(-2%, -1%); }
+  100% { transform: translate(0, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .felt-grain::before { animation: none; }
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-gold);
+  outline-offset: 2px;
+}
