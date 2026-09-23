@@ -1,0 +1,6 @@
+{
+  "projects": {
+    "default": "demo-nue-uno",
+    "demo": "demo-nue-uno"
+  }
+}

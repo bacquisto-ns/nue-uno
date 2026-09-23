@@ -15,6 +15,7 @@ Firestore
   config/app                                   # currentSeasonId, rosterRequired, teams toggles, feature flags
   roster/{emailLower}                          # HR roster (admin only)
   users/{uid}
+  displayNames/{lowercaseName}                # { uid } — reservation that keeps display names unique (server only)
   seasons/{seasonId}
   games/{gameId}                               # public state
   games/{gameId}/hands/{uid}                   # owner-only
