@@ -42,7 +42,9 @@ export function SignIn() {
       });
       localStorage.setItem(EMAIL_KEY, clean);
       setSentTo(clean);
-    } catch {
+    } catch (err) {
+      // Surfaces Firebase config problems (auth/operation-not-allowed, auth/unauthorized-continue-uri, …).
+      console.error('sendSignInLinkToEmail failed', err);
       setError("We couldn't send the link. Check the address and try again.");
     } finally {
       setBusy(false);
