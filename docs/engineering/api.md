@@ -110,15 +110,23 @@ All moves are rejected with `PAUSED` while `paused` is set. Response: `{ ok: tru
 |---|---|---|
 | `markInboxSeen` | `{ itemIds: string[] }` | Sets `seenAt` |
 
-## 3. Admin callables (need the `admin` claim; each one writes to `auditLog`)
+## 3. Admin actions (need the `admin` claim; each one writes to `auditLog`)
 
-| Function | Request | Effect |
+**One `admin` callable, many actions.** The actions below aren't separate Cloud Functions. The web app calls a single callable, `admin`, with `{ action, payload }`. `functions/src/event/adminRouter.ts` runs `requireAdmin`, looks up `action` in its `ACTIONS` map (an unknown action is `BAD_REQUEST`), and passes `payload` to that action's handler as the request data. The handler parses and audits as usual. In the web app, `eventApi.*` wraps this as `adminCall(action, payload)`.
+
+**Why.** A new Firebase project gets a Cloud Run quota of **20 vCPU per region**, and each 2nd-gen function is its own Cloud Run service that reserves CPU for its maximum instances. With one function per admin action, the first dev deploy failed with *"Quota exceeded for total allowable CPU per project per region"*. The fix has two parts:
+- **Consolidate:** the 16 admin actions share one service. Admin traffic is a handful of clicks from one or two organizers, so one service is plenty. The deploy now has **25 functions**, not ~40.
+- **Right-size CPU:** global options are `{ cpu: 'gcf_gen1', maxInstances: 3, concurrency: 1 }` (fractional CPU, like 1st-gen). Only the hot path (the move callables and check-ins) gets `{ cpu: 1, concurrency: 80, maxInstances: 1 }`, so one warm instance serves all the tables. The total reservation is about **18 vCPU**, which fits under the quota with no increase request.
+
+Add a new admin operation as an entry in `ACTIONS`, not as a new export in `functions/src/index.ts`. Rows marked *(planned)* aren't built yet.
+
+| Action | Payload | Effect |
 |---|---|---|
 | `setSeason` | partial season fields (status, window, `unoHours`, timers, `finalLap`, scoring, cup, pickem, `bracketSize`) | Updates the season. When status changes to `event`, every client switches to the Event Hub. |
-| `setConfig` | partial `config/app` | Toggles the roster requirement, Teams post types, and feature kill switches |
+| `setConfig` *(planned)* | partial `config/app` | Toggles the roster requirement, Teams post types, and feature kill switches |
 | `importRoster` | `{ rows: Array<{ email, name, department, office? }>, replace?: boolean }` | Upserts `roster/*`. Existing pending users whose email is now on the roster are activated. |
 | `approveUser` | `{ uid }` | Sets the `active` claim and status. Sends an inbox welcome. |
-| `adminUpdateUser` | `{ uid, displayName?, department?, attendingEvent?, status? }` | Moderation. Setting `status: 'disabled'` revokes the claim and refresh tokens. |
+| `adminUpdateUser` *(planned)* | `{ uid, displayName?, department?, attendingEvent?, status? }` | Moderation. Setting `status: 'disabled'` revokes the claim and refresh tokens. |
 | `voidGame` | `{ gameId, reason }` | Marks the result voided and the game `voided`. Triggers recompute everything that depends on it. A bracket match goes back to `ready`. |
 | `generateBracket` | `{ seasonId, size?, excludeUids? }` | Creates a draft ([algorithm](tournament.md#bracket-generation-general-n)) with default `physicalTable` values |
 | `editBracketSeeds` | `{ bracketId, seeds }` | Draft only |
@@ -130,11 +138,10 @@ All moves are rejected with `PAUSED` while `paused` is set. Response: `{ ok: tru
 | `pauseAll` / `resumeAll` | `{ reason? }` | Pause: `paused = true` on in-progress bracket games (casual games are left alone) and a `paused` event. Resume: shifts `turnDeadline` and `finalLapAt` forward by the pause length and emits `resumed`. |
 | `broadcast` | `{ text, level, ttlMinutes }` | Creates an active `announcements` doc |
 | `clearBroadcast` | `{ id }` | |
-| `setTvScene` | `{ scene, featuredGameId?, autoCycle?, revealHands? }` | Writes `tv/state` |
-| `advanceSelectionShow` | `{ bracketId, step?: number }` | Moves to the next reveal (or a given step). On each player's reveal, sends that player a `selected` takeover inbox item ("You're in! Seed 7 · Table C"). |
-| `computeAwards` | `{ seasonId }` | Builds `awards/{seasonId}` from `playerStats`, the Passport, the Cup, and Pick'em ([tournament §6](tournament.md#6-awards)) |
-| `buildWrapped` | `{ seasonId, uid? }` | Builds `wrapped/*` for everyone (or one user) and writes `hallOfFame` |
-| `adminStats` | `{ seasonId }` | Returns the metrics in PRD §13, calculated with aggregate count queries |
+| `setTvScene` | `{ scene, featuredGameId?, autoCycle?, selectionStep?, introMatchId? }` | Merges into `tv/state`. **Player Intros:** `introMatchId` picks the table (null = the next table up). **Selection Show:** `selectionStep` 0 is the title card, *k* means *k* seeds revealed (bottom seed first), and `size + 1` is the finale. Mission Control's Next/Back buttons send the step. When a step reveals a seed, that player gets a `selected` inbox item ("You're in! Seed 7, Table 2"). The item's id is `selection-{bracketId}`, so stepping back and forth never sends it twice. |
+| `computeAwards` *(planned)* | `{ seasonId }` | Builds `awards/{seasonId}` from `playerStats`, the Passport, the Cup, and Pick'em ([tournament §6](tournament.md#6-awards)) |
+| `buildWrapped` *(planned)* | `{ seasonId, uid? }` | Builds `wrapped/*` for everyone (or one user) and writes `hallOfFame` |
+| `adminStats` *(planned)* | `{ seasonId }` | Returns the metrics in PRD §13, calculated with aggregate count queries |
 
 ## 4. Triggers
 

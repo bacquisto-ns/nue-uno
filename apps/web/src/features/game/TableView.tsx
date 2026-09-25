@@ -1,8 +1,9 @@
 import type { Card as CardModel, Color } from '@nue-uno/engine';
 import { AnimatePresence, m } from 'framer-motion';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { ApiError } from '../../api/call';
+import { SoundToggle } from '../../audio/SoundToggle';
 import {
   myOptions,
   seatsFromMe,
@@ -75,9 +76,12 @@ export interface TableViewProps {
   exitTo?: string;
   /** Recent game events (ascending seq) that drive the signature effects. */
   events?: FxEvent[];
+  /** Extra header controls (e.g. the emote button) and overlays from the online wrapper. */
+  headerExtras?: ReactNode;
+  overlay?: ReactNode;
 }
 
-export function TableView({ view, actions, serverNow, totalTurnMs, haptics = true, offline, exitTo = '/', events }: TableViewProps) {
+export function TableView({ view, actions, serverNow, totalTurnMs, haptics = true, offline, exitTo = '/', events, headerExtras, overlay }: TableViewProps) {
   const mode = useEffectsMode();
   useFpsGovernor(mode === 'full');
   const full = mode === 'full';
@@ -221,7 +225,11 @@ export function TableView({ view, actions, serverNow, totalTurnMs, haptics = tru
         )}
         {view.paused && <span className="rounded-full bg-card-yellow px-2 py-0.5 text-xs font-bold text-felt-950">PAUSED</span>}
         {offline && <span className="rounded-full bg-card-red/80 px-2 py-0.5 text-xs font-bold">Reconnecting…</span>}
-        <span className="ml-auto" aria-live="polite">
+        <span className="ml-auto flex items-center gap-2">
+          {headerExtras}
+          <SoundToggle />
+        </span>
+        <span aria-live="polite">
           {finished ? 'Game over' : opts.isMyTurn ? <strong className="text-gold">Your turn</strong> : `${turnName ?? '…'}'s turn`}
         </span>
       </header>
@@ -444,7 +452,8 @@ export function TableView({ view, actions, serverNow, totalTurnMs, haptics = tru
         </div>
       )}
 
-      <EffectsLayer events={events ?? []} mode={mode} onShake={onShake} />
+      {overlay}
+      <EffectsLayer events={events ?? []} mode={mode} onShake={onShake} myUid={view.myUid} haptics={haptics} />
       {finished && <Results view={view} exitTo={exitTo} full={full} />}
     </m.main>
   );

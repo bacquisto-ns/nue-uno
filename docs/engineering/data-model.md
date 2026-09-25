@@ -228,7 +228,9 @@ Aggregate counters, recomputed from `results`: `{ games, humanGames, wins, wild4
 
 ## `tv/state`
 
-`{ scene: 'bracket' | 'intros' | 'selection' | 'pickem' | 'cup' | 'featured' | 'awards' | 'champion', featuredGameId, selectionStep, awardsStep, autoCycle, revealHands (P2), updatedAt }`
+`{ scene: 'bracket' | 'intros' | 'selection' | 'pickem' | 'cup' | 'featured' | 'awards' | 'champion', featuredGameId, selectionStep, introMatchId, awardsStep, autoCycle, revealHands (P2), updatedAt }`
+
+`selectionStep`: 0 is the title card, *k* means *k* seeds revealed (bottom seed first), and `size + 1` is the finale. `introMatchId` is the match whose walk-out cards the Player Intros scene shows (null = the next table up).
 
 ## `awards/{seasonId}`, `hallOfFame/{seasonId}`, `wrapped/{seasonId}_{uid}`
 

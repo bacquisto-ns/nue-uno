@@ -45,6 +45,7 @@ export function BracketBoard({
             return (
               <m.article
                 key={id}
+                data-match={id}
                 layout
                 transition={spring.soft}
                 className={`rounded-2xl bg-felt-900/90 ring-1 ${mt.status === 'in_progress' ? 'ring-card-red/70' : 'ring-white/10'} ${tv ? 'p-5' : 'p-3'}`}

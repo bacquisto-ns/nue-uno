@@ -115,7 +115,7 @@ Sounds refer to §7. Haptics refer to §8 (Android only).
 - **TV set** (loaded separately, can be bigger): all of the above plus `crowd-ooh`, `cheer`, `drumroll`, `fanfare`, and a low ambient bed during the bracket (set by the admin, at a low volume).
 - **Mix:** everyday sounds at −18 LUFS, signature sounds at −12. A master volume control. **Sound is off by default on phones.** It's turned on with the speaker toggle in the corner of the game screen (browsers only allow audio after a tap anyway).
 - **Sourcing:** royalty-free libraries (e.g. Kenney, Sonniss GDC bundles) or custom-made sounds. Every source and its license go in `apps/web/public/audio/CREDITS.md`.
-- **Library:** Howler.js (sprite playback, handles iOS audio unlock).
+- **Implementation (changed 2026-09-25):** every sound is **synthesized with the Web Audio API** (`apps/web/src/audio/sound.ts`): oscillators and filtered noise shaped by envelopes. There's no sprite file and no Howler.js. That means 0 KB to download, nothing to license or credit, and nothing that can fail to load on office Wi-Fi. The sound names above are unchanged, and the TV set adds `reveal`. The first tap after sound is turned on unlocks the audio context (iOS). Event → sound + haptic mapping is in `audio/cues.ts`, with unit tests. If real recorded sounds are wanted later, swap the recipe for a sample; the call sites don't change.
 
 ## 8. Haptics
 
@@ -132,7 +132,7 @@ Sounds refer to §7. Haptics refer to §8 (Android only).
 
 ## 9. Performance governance
 
-- **Libraries:** Framer Motion (layout animations, springs, gestures, and drag-to-play), `canvas-confetti` (particles in a separate worker-backed canvas), and Howler.js. **No** heavy 3D engine. The 3D card flip uses CSS `rotateY` with `backface-visibility`. Effects and sounds load only when the game route opens.
+- **Libraries:** Framer Motion (layout animations, springs, gestures, and drag-to-play), `canvas-confetti` (particles in a separate worker-backed canvas), and Web Audio (synthesized sounds, §7). **No** heavy 3D engine. The 3D card flip uses CSS `rotateY` with `backface-visibility`. Effects and sounds load only when the game route opens.
 - Animate **only** `transform` and `opacity`. Add `will-change` only while an animation is running. Card faces are pre-built SVG sprites, and there are no layout-triggering properties in motion loops.
 - **Frame-rate monitor:** an rAF sampler runs during effects. If the average is under 45fps over 2 seconds, switch to **Reduced** for the session and show the notice "Effects reduced for smoother play" once.
 - **Particle caps:** 150 on phones, 600 on the TV, 0 in Reduced.
