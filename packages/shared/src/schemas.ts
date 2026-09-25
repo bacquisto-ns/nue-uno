@@ -90,6 +90,19 @@ export const ImportRosterInput = z.object({
   replace: z.boolean().optional(),
 });
 export const ApproveUserInput = z.object({ uid: Id });
+/** Moderation (PRD AD1, api.md): fix a name or department, or disable/re-enable an account. */
+export const AdminUpdateUserInput = z
+  .object({
+    uid: Id,
+    displayName: DisplayNameSchema.optional(),
+    department: z.string().trim().min(1).max(60).nullish(),
+    attendingEvent: z.enum(['yes', 'no', 'maybe']).optional(),
+    status: z.enum(['active', 'disabled']).optional(),
+    reason: z.string().trim().min(3, 'Give a short reason').max(300),
+  })
+  .refine((v) => v.displayName !== undefined || v.department !== undefined || v.attendingEvent !== undefined || v.status !== undefined, {
+    message: 'Nothing to change.',
+  });
 export type RosterRow = z.infer<typeof RosterRow>;
 
 // ---- Event day ------------------------------------------------------------------------------

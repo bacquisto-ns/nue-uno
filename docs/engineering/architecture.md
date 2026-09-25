@@ -117,7 +117,7 @@ sequenceDiagram
 - **Accepted risk:** without verification, anyone can create an account under any `@nuesynergy.com` address, including a coworker's that hasn't been claimed yet, and play under that name. The owner accepted this for an internal game.
 - **Mitigations:**
   - The real owner can't be locked out silently: "Create account" fails with "already has an account", and they can use "Forgot password?" to take the account back, since the reset email goes to the real inbox.
-  - An admin can disable a bad account in the Firebase console (Authentication → the user → Disable account). There's no Mission Control screen for this yet: `adminUpdateUser` is planned.
+  - An admin can disable a bad account in **Mission Control → Players**. That's `adminUpdateUser`: it blocks sign-in, removes the claim and revokes tokens, and needs a reason, which goes to `auditLog`. The Players list flags accounts that aren't on the HR roster.
   - Turning on `config/app.rosterRequired` limits activation to HR roster emails. That still allows impersonation of someone on the roster.
 - **To tighten later:** Microsoft sign-in (Entra ID) proves inbox ownership without email. Or require `email_verified` again once mail delivery is fixed.
 

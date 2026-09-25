@@ -115,7 +115,7 @@ All moves are rejected with `PAUSED` while `paused` is set. Response: `{ ok: tru
 **One `admin` callable, many actions.** The actions below aren't separate Cloud Functions. The web app calls a single callable, `admin`, with `{ action, payload }`. `functions/src/event/adminRouter.ts` runs `requireAdmin`, looks up `action` in its `ACTIONS` map (an unknown action is `BAD_REQUEST`), and passes `payload` to that action's handler as the request data. The handler parses and audits as usual. In the web app, `eventApi.*` wraps this as `adminCall(action, payload)`.
 
 **Why.** A new Firebase project gets a Cloud Run quota of **20 vCPU per region**, and each 2nd-gen function is its own Cloud Run service that reserves CPU for its maximum instances. With one function per admin action, the first dev deploy failed with *"Quota exceeded for total allowable CPU per project per region"*. The fix has two parts:
-- **Consolidate:** the 18 admin actions share one service. Admin traffic is a handful of clicks from one or two organizers, so one service is plenty. The deploy now has **25 functions**, not ~40.
+- **Consolidate:** the 19 admin actions share one service. Admin traffic is a handful of clicks from one or two organizers, so one service is plenty. The deploy now has **25 functions**, not ~40.
 - **Right-size CPU:** global options are `{ cpu: 'gcf_gen1', maxInstances: 3, concurrency: 1 }` (fractional CPU, like 1st-gen). Only the hot path (the move callables and check-ins) gets `{ cpu: 1, concurrency: 80, maxInstances: 1 }`, so one warm instance serves all the tables. The total reservation is about **18 vCPU**, which fits under the quota with no increase request.
 
 Add a new admin operation as an entry in `ACTIONS`, not as a new export in `functions/src/index.ts`. Rows marked *(planned)* aren't built yet.
@@ -124,9 +124,9 @@ Add a new admin operation as an entry in `ACTIONS`, not as a new export in `func
 |---|---|---|
 | `setSeason` | partial season fields (status, window, `unoHours`, timers, `finalLap`, scoring, cup, pickem, `bracketSize`) | Updates the season. When status changes to `event`, every client switches to the Event Hub. |
 | `setConfig` *(planned)* | partial `config/app` | Toggles the roster requirement, Teams post types, and feature kill switches |
-| `importRoster` | `{ rows: Array<{ email, name, department, office? }>, replace?: boolean }` | Upserts `roster/*`. Existing pending users whose email is now on the roster are activated. |
+| `importRoster` | `{ rows: Array<{ email, name, department, office? }>, replace?: boolean }` | Upserts `roster/*`. Existing pending users whose email is now on the roster are activated. Mission Control → Players → *Import HR roster* parses the CSV in the browser (`rosterCsv.ts`: common HR headers, company emails only, duplicates reported), so the file itself is never uploaded. |
 | `approveUser` | `{ uid }` | Sets the `active` claim and status. Sends an inbox welcome. |
-| `adminUpdateUser` *(planned)* | `{ uid, displayName?, department?, attendingEvent?, status? }` | Moderation. Setting `status: 'disabled'` revokes the claim and refresh tokens. |
+| `adminUpdateUser` | `{ uid, reason, displayName?, department?, attendingEvent?, status?: 'active' \| 'disabled' }` | Moderation, from Mission Control → Players. `status: 'disabled'` disables sign-in, removes the `active` claim and revokes refresh tokens. The person is locked out once their current token expires (≤ 1 hour), because rules can't see revocation sooner. `'active'` re-enables sign-in and restores the claim. Renames keep `displayNames` unique (`NAME_TAKEN`). A reason is required, and admins can't disable themselves. This is the main safeguard for password accounts (architecture ADR-3). |
 | `voidGame` | `{ gameId, reason }` | Marks the result voided and the game `voided`. Triggers recompute everything that depends on it. A bracket match goes back to `ready`. |
 | `generateBracket` | `{ seasonId, size?, excludeUids? }` | Creates a draft ([algorithm](tournament.md#bracket-generation-general-n)) with default `physicalTable` values |
 | `editBracketSeeds` | `{ bracketId, seeds }` | Draft only |

@@ -4,11 +4,13 @@ import { Link } from 'react-router';
 import { ApiError } from '../../api/call';
 import type { SeasonStats } from '@nue-uno/shared';
 import { eventApi, type SeasonStatus, type TvScene } from '../../api/event';
+import { useSession } from '../../auth/session';
 import { useActiveBracket, useDirectory, type MatchView } from '../../hooks/bracket';
 import { db, useDoc, useQuery } from '../../hooks/firestore';
 import { Avatar } from '../../ui/Avatar';
 import { Button, ErrorText, Panel } from '../../ui/primitives';
 import { LiveOverlays } from '../live/LiveOverlays';
+import { PlayersPanel } from './PlayersPanel';
 
 interface LiveGameRow {
   status: string;
@@ -56,6 +58,7 @@ function useAction() {
 export function AdminPage() {
   const now = useNow(5000);
   const { busy, error, ok, run } = useAction();
+  const myUid = useSession((s) => s.user?.uid);
   const { bracketId, bracket, matches, season, paused } = useActiveBracket();
   const directory = useDirectory();
   const seasonDoc = useDoc<{ status?: SeasonStatus; bracketSize?: number; qualifierStart?: Timestamp; qualifierEnd?: Timestamp }>(`seasons/${season.id}`);
@@ -277,6 +280,7 @@ export function AdminPage() {
         </Panel>
       </div>
       <StatsPanel />
+      {myUid && <PlayersPanel myUid={myUid} />}
       <ErrorText>{error}</ErrorText>
       <div className="flex flex-wrap gap-2 text-sm text-ink-muted">
         Champion: {bracket?.championUid ? (
