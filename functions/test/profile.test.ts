@@ -51,6 +51,16 @@ describe('saveProfile', () => {
     expect((await adminAuth.getUser('u1')).customClaims).toMatchObject({ active: true });
   });
 
+  it('records the finished tutorial and stamps the Passport (and keeps it on later saves)', async () => {
+    const ctx = await makeUser('ut', 'tia@nuesynergy.com');
+    await saveProfileHandler({ ...ctx, data: profile('Tia') });
+    expect((await db.doc('users/ut').get()).get('tutorialDone')).toBe(false);
+    await saveProfileHandler({ ...ctx, data: profile('Tia', { tutorialDone: true }) });
+    await saveProfileHandler({ ...ctx, data: profile('Tia', { tutorialDone: null }) });
+    expect((await db.doc('users/ut').get()).get('tutorialDone')).toBe(true);
+    expect((await db.doc('passport/ut').get()).get('milestones')).toEqual(['tutorial']);
+  });
+
   it('accepts null optional fields (the callable SDK sends undefined as null)', async () => {
     const ctx = await makeUser('un', 'nell@nuesynergy.com');
     const res = await saveProfileHandler({

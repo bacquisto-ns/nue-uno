@@ -3,14 +3,17 @@ import {
   botAction,
   createGame,
   createRandom,
-  splitState,
   type Action,
+  type BotLevel,
+  type Card,
+  type EngineEvent,
   type GameState,
 } from '@nue-uno/engine';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { ApiError } from '../../api/call';
 import { useSession } from '../../auth/session';
+import { localView, type LocalSeat } from '../../game/local';
 import type { TableActions, TableViewModel } from '../../game/view';
 import { Button, Panel, Screen } from '../../ui/primitives';
 import type { FxEvent } from '../game/EffectsLayer';
@@ -21,7 +24,7 @@ const BOTS = [
   { uid: 'bot-shark', displayName: 'Card Shark', avatarId: 'wolf', avatarColor: 'sky' },
   { uid: 'bot-willow', displayName: 'Wild Willow', avatarId: 'owl', avatarColor: 'lime' },
 ];
-const ME = 'me';
+export const ME = 'me';
 
 /**
  * Practice vs bots (PRD O3, architecture ADR-7): the same engine and table UI, run entirely in the
@@ -47,21 +50,43 @@ export function PracticeGame() {
       </Screen>
     );
   }
-  return <LocalTable key={botCount} botCount={botCount} onRestart={() => setBotCount(null)} />;
+  return <LocalTable key={botCount} bots={BOTS.slice(0, botCount)} onLeave={() => setBotCount(null)} />;
 }
 
-function LocalTable({ botCount, onRestart }: { botCount: number; onRestart: () => void }) {
+export interface LocalTableProps {
+  bots: readonly LocalSeat[];
+  /** Stacked deck / hand size / dealer / bot level (tutorial); random otherwise. */
+  setup?: { deck?: Card[]; handSize?: number; dealerIndex?: number; botLevel?: BotLevel };
+  /** Extra UI over the table (the tutorial coach), given the current view and new events. */
+  overlay?: (view: TableViewModel) => ReactNode;
+  onEvents?: (events: EngineEvent[]) => void;
+  onLeave: () => void;
+  exitTo?: string;
+}
+
+/** A game run entirely by the in-browser engine: practice and the tutorial (ADR-7). */
+export function LocalTable({ bots, setup, overlay, onEvents, onLeave, exitTo = '/' }: LocalTableProps) {
   const profile = useSession((s) => s.profile);
-  const bots = useMemo(() => BOTS.slice(0, botCount), [botCount]);
   const [seed] = useState(() => (Date.now() ^ 0x5eed) | 0);
   const random = useMemo(() => createRandom(seed ^ 0x9e37), [seed]);
-  const [state, setState] = useState<GameState>(() => createGame([ME, ...bots.map((b) => b.uid)], seed).state);
+  const [state, setState] = useState<GameState>(
+    () =>
+      createGame([ME, ...bots.map((b) => b.uid)], seed, {
+        presetDeck: setup?.deck,
+        dealerIndex: setup?.dealerIndex,
+        rules: setup?.handSize ? { handSize: setup.handSize } : undefined,
+      }).state,
+  );
   const [lastPlayedBy, setLastPlayedBy] = useState<string | null>(null);
   const [fx, setFx] = useState<FxEvent[]>([]);
   const stateRef = useRef(state);
   useLayoutEffect(() => {
     stateRef.current = state;
   }, [state]);
+  const eventsCb = useRef(onEvents);
+  useLayoutEffect(() => {
+    eventsCb.current = onEvents;
+  });
 
   const apply = useCallback((action: Action): void => {
     const res = applyAction(stateRef.current, action);
@@ -74,18 +99,20 @@ function LocalTable({ botCount, onRestart }: { botCount: number; onRestart: () =
       return [...prev, ...res.events.map((e) => ({ ...e, seq: ++seq }))].slice(-12);
     });
     setState(res.state);
+    eventsCb.current?.(res.events);
   }, []);
 
-  // Bots think for 0.9–1.8 s, then act; they may also catch a forgotten UNO.
+  // Bots think for 0.9–1.8 s, then act; normal bots may also catch a forgotten UNO.
+  const level = setup?.botLevel ?? 'normal';
   useEffect(() => {
     if (state.phase === 'finished') return;
     const turnUid = state.players[state.turn]!;
-    const catcher = bots.find((b) => state.unoPending && state.unoPending !== b.uid);
+    const catcher = level === 'normal' ? bots.find((b) => state.unoPending && state.unoPending !== b.uid) : undefined;
     const actor = turnUid.startsWith('bot-') ? turnUid : catcher?.uid;
     if (!actor) return;
     const delay = 900 + random() * 900;
     const timer = window.setTimeout(() => {
-      const action = botAction(stateRef.current, actor, random);
+      const action = botAction(stateRef.current, actor, random, level);
       if (action) {
         try {
           apply(action);
@@ -95,48 +122,16 @@ function LocalTable({ botCount, onRestart }: { botCount: number; onRestart: () =
       }
     }, delay);
     return () => window.clearTimeout(timer);
-  }, [apply, bots, random, state]);
+  }, [apply, bots, level, random, state]);
 
   const view: TableViewModel = useMemo(() => {
-    const { publicDoc } = splitState(state);
-    const names: Record<string, { displayName: string; avatarId: string; avatarColor: string }> = {
-      [ME]: {
-        displayName: profile?.displayName ?? 'You',
-        avatarId: profile?.avatarId ?? 'fox',
-        avatarColor: profile?.avatarColor ?? 'teal',
-      },
-      ...Object.fromEntries(bots.map((b) => [b.uid, b])),
+    const me: LocalSeat = {
+      uid: ME,
+      displayName: profile?.displayName ?? 'You',
+      avatarId: profile?.avatarId ?? 'fox',
+      avatarColor: profile?.avatarColor ?? 'teal',
     };
-    return {
-      myUid: ME,
-      seats: state.players.map((uid) => ({
-        uid,
-        ...names[uid]!,
-        cardCount: publicDoc.handCounts[uid] ?? 0,
-        away: false,
-        forfeited: state.forfeited.includes(uid),
-        isBot: uid !== ME,
-      })),
-      myHand: state.hands[ME] ?? [],
-      topCard: publicDoc.topCard,
-      currentColor: state.currentColor,
-      direction: state.direction,
-      phase: state.phase,
-      turnUid: publicDoc.turnUid,
-      drawnCardId: state.drawnCardId,
-      drawPileCount: publicDoc.drawPileCount,
-      unoPending: state.unoPending,
-      finalLap: state.finalLap,
-      turnDeadlineMs: null,
-      graceMs: 0,
-      paused: false,
-      mode: 'practice',
-      status: state.phase === 'finished' ? 'finished' : 'in_progress',
-      placements: state.placements,
-      endedBy: state.endedBy,
-      version: state.version,
-      lastPlayedBy,
-    };
+    return localView(state, ME, [me, ...bots], lastPlayedBy);
   }, [bots, lastPlayedBy, profile, state]);
 
   const actions: TableActions = useMemo(() => {
@@ -148,9 +143,9 @@ function LocalTable({ botCount, onRestart }: { botCount: number; onRestart: () =
       chooseColor: (color) => act({ type: 'chooseColor', uid: ME, color }),
       callUno: () => act({ type: 'callUno', uid: ME }),
       catchUno: (targetUid) => act({ type: 'catchUno', uid: ME, targetUid }),
-      leave: async () => onRestart(),
+      leave: async () => onLeave(),
     };
-  }, [apply, onRestart]);
+  }, [apply, onLeave]);
 
-  return <TableView view={view} actions={actions} serverNow={Date.now} totalTurnMs={30_000} exitTo="/" events={fx} />;
+  return <TableView view={view} actions={actions} serverNow={Date.now} totalTurnMs={30_000} exitTo={exitTo} events={fx} overlay={overlay?.(view)} />;
 }

@@ -15,8 +15,17 @@ Related: [Architecture](architecture.md) · [Experience & Motion §11](../design
 | Effects | Playwright on `/dev/effects` | Final-frame visual snapshot of each moment in Full, Reduced, and Off. An assertion that input stays enabled during every effect. | Required on PRs that touch `motion/` |
 | End-to-end | Playwright against emulators | (1) Sign in with an email link, first-run setup, lobby. (2) Two browser contexts play a full seeded game to the end. (3) A Final Lap game with the fake clock. (4) Admin generates and locks a bracket, players check in with QR `/table/1`, the TV shows advancement. (5) The tutorial completes. | Required before merging to `main` |
 | Performance | Lighthouse CI on the lobby. A manual trace on the test devices. | First load ≤ 150 KB and lobby total ≤ 325 KB gzipped, largest paint < 2.5s on 4G. 60fps during the X3 and X7 effects on an iPhone 12 and Pixel 6a. | Budget checked in CI. Device check weekly from Week 3. |
-| Load | `scripts/loadtest.ts` against **dev**. It uses the engine's `botAction` through real callables. | 12 tables × 4 bots plus 40 simulated spectators (Firestore listeners and RTDB reactions) for 15 minutes. Measures p95 time from call to snapshot. | Week 5. Target p95 < 500ms. |
+| Load | `npm run load-test -- [tables] [seats] [seconds]` (`scripts/load-test.ts`), **emulator only**. It uses the engine's `botAction` through the real callables. | 12 tables × 4 bots play until finished. It reports accepted moves, p50/p95/p99 call-to-accepted latency, rejections by reason, and games finished. The emulator runs everything in one local process, so treat it as a relative baseline. The PRD target (p95 < 500 ms) is measured on **dev** during the dry run, with warm instances on. | Week 5 (see results below). Rerun after any change to the move path. |
 | Event dry run | Real people and the real TV | About 8 players, a full 2-round bracket, Selection Show, Pick'em, reactions, pause/resume, awards | Week 5 |
+
+**Load test results (2026-09-25, emulators, 12 tables × 4 bots):**
+
+| Run | Moves accepted | p50 | p95 | p99 | Max | Rejected | Games finished |
+|---|---|---|---|---|---|---|---|
+| Cold (first run after the emulators start) | 668 in 60 s | 72 ms | 214 ms | 2,456 ms | 2,604 ms | 9 `STALE_STATE` | 12 / 12 |
+| Warm | 625 in 35 s | 75 ms | 158 ms | 218 ms | 332 ms | 1 `STALE_STATE` | 12 / 12 |
+
+The p99 spikes happen only in the cold run: the first calls pay function start-up. That's why event day runs with `WARM_MOVE_FUNCTIONS=true` (§5). `STALE_STATE` rejections are expected: another move landed first, and the client simply re-reads. No other errors occurred.
 
 **A fake clock for tests:** functions read time through `clock.now()`. In the emulator only, `NUE_UNO_TEST_CLOCK_OFFSET_MS` can be changed through a test-only HTTP endpoint (not deployed to prod), so tests can jump to the Final Lap or past a deadline.
 

@@ -20,7 +20,11 @@
 
   --color-gold: #f5c542;
   --color-ink: #e8eef6;
-  --color-ink-muted: #9fb0c3;
+  --color-ink-muted: #adbccd;
+  /* UI-only status colors, tuned for WCAG AA with white text (cards keep the classic palette). */
+  --color-alert: #c62f35;
+  --color-alert-ink: #ff8a8e;
+  --color-success: #1e7a45;
 }
 
 :root {

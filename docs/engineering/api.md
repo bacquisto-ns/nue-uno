@@ -70,7 +70,7 @@ export const playCard = onCall(moveOpts, async (req) => {
 ### Profile and onboarding
 | Function | Request | Response | Notes |
 |---|---|---|---|
-| `saveProfile` | `{ displayName, avatarId, avatarColor?, department?, attendingEvent, signatureCard?, settings? }` | `{ ok, status: 'active' \| 'pending' }` | Creates or updates the user. On the first call it looks up `roster/{email}` to prefill and **activate** the user (sets the `active` claim). If the user isn't on the roster and `rosterRequired` is on, they stay pending. The client then calls `getIdToken(true)`. The display name must be unique (`NAME_TAKEN`). |
+| `saveProfile` | `{ displayName, avatarId, avatarColor?, department?, attendingEvent, signatureCard?, settings?, tutorialDone?: true }` | `{ ok, status: 'active' \| 'pending' }` | Creates or updates the user. On the first call it looks up `roster/{email}` to prefill and **activate** the user (sets the `active` claim). If the user isn't on the roster and `rosterRequired` is on, they stay pending. The client then calls `getIdToken(true)`. The display name must be unique (`NAME_TAKEN`). `tutorialDone: true` (sent when the tutorial ends) sets the flag for good and adds the `tutorial` Passport milestone. |
 | `completeTutorial` | `{}` | `{ ok }` | Sets `tutorialDone` and adds the Passport milestone `tutorial` |
 
 ### Lobby
@@ -115,7 +115,7 @@ All moves are rejected with `PAUSED` while `paused` is set. Response: `{ ok: tru
 **One `admin` callable, many actions.** The actions below aren't separate Cloud Functions. The web app calls a single callable, `admin`, with `{ action, payload }`. `functions/src/event/adminRouter.ts` runs `requireAdmin`, looks up `action` in its `ACTIONS` map (an unknown action is `BAD_REQUEST`), and passes `payload` to that action's handler as the request data. The handler parses and audits as usual. In the web app, `eventApi.*` wraps this as `adminCall(action, payload)`.
 
 **Why.** A new Firebase project gets a Cloud Run quota of **20 vCPU per region**, and each 2nd-gen function is its own Cloud Run service that reserves CPU for its maximum instances. With one function per admin action, the first dev deploy failed with *"Quota exceeded for total allowable CPU per project per region"*. The fix has two parts:
-- **Consolidate:** the 16 admin actions share one service. Admin traffic is a handful of clicks from one or two organizers, so one service is plenty. The deploy now has **25 functions**, not ~40.
+- **Consolidate:** the 18 admin actions share one service. Admin traffic is a handful of clicks from one or two organizers, so one service is plenty. The deploy now has **25 functions**, not ~40.
 - **Right-size CPU:** global options are `{ cpu: 'gcf_gen1', maxInstances: 3, concurrency: 1 }` (fractional CPU, like 1st-gen). Only the hot path (the move callables and check-ins) gets `{ cpu: 1, concurrency: 80, maxInstances: 1 }`, so one warm instance serves all the tables. The total reservation is about **18 vCPU**, which fits under the quota with no increase request.
 
 Add a new admin operation as an entry in `ACTIONS`, not as a new export in `functions/src/index.ts`. Rows marked *(planned)* aren't built yet.
@@ -138,10 +138,10 @@ Add a new admin operation as an entry in `ACTIONS`, not as a new export in `func
 | `pauseAll` / `resumeAll` | `{ reason? }` | Pause: `paused = true` on in-progress bracket games (casual games are left alone) and a `paused` event. Resume: shifts `turnDeadline` and `finalLapAt` forward by the pause length and emits `resumed`. |
 | `broadcast` | `{ text, level, ttlMinutes }` | Creates an active `announcements` doc |
 | `clearBroadcast` | `{ id }` | |
-| `setTvScene` | `{ scene, featuredGameId?, autoCycle?, selectionStep?, introMatchId? }` | Merges into `tv/state`. **Player Intros:** `introMatchId` picks the table (null = the next table up). **Selection Show:** `selectionStep` 0 is the title card, *k* means *k* seeds revealed (bottom seed first), and `size + 1` is the finale. Mission Control's Next/Back buttons send the step. When a step reveals a seed, that player gets a `selected` inbox item ("You're in! Seed 7, Table 2"). The item's id is `selection-{bracketId}`, so stepping back and forth never sends it twice. |
-| `computeAwards` *(planned)* | `{ seasonId }` | Builds `awards/{seasonId}` from `playerStats`, the Passport, the Cup, and Pick'em ([tournament §6](tournament.md#6-awards)) |
+| `setTvScene` | `{ scene, featuredGameId?, autoCycle?, selectionStep?, introMatchId?, awardsStep? }` | Merges into `tv/state`. **Player Intros:** `introMatchId` picks the table (null = the next table up). **Selection Show:** `selectionStep` 0 is the title card, *k* means *k* seeds revealed (bottom seed first), and `size + 1` is the finale. Mission Control's Next/Back buttons send the step. When a step reveals a seed, that player gets a `selected` inbox item ("You're in! Seed 7, Table 2"). The item's id is `selection-{bracketId}`, so stepping back and forth never sends it twice. |
+| `computeAwards` | `{}` (current season) | Builds `awards/{seasonId}` from `playerStats`, the Passport, the Cup, Pick'em and the bracket champion ([tournament §6](tournament.md#6-awards)). Pure logic in `packages/shared/src/awards.ts`. Safe to re-run. The TV Awards scene steps through it with `setTvScene({ scene: 'awards', awardsStep })`. |
 | `buildWrapped` *(planned)* | `{ seasonId, uid? }` | Builds `wrapped/*` for everyone (or one user) and writes `hallOfFame` |
-| `adminStats` *(planned)* | `{ seasonId }` | Returns the metrics in PRD §13, calculated with aggregate count queries |
+| `adminStats` | `{}` (current season) | Returns `{ metrics, daily }`: the PRD §13 metrics with targets, plus daily active players and ranked games (season time zone). Pure logic in `packages/shared/src/stats.ts`. Read-only, not audited. |
 
 ## 4. Triggers
 

@@ -2,6 +2,7 @@ import { collection, limit, orderBy, query, where, type Timestamp } from 'fireba
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { ApiError } from '../../api/call';
+import type { SeasonStats } from '@nue-uno/shared';
 import { eventApi, type SeasonStatus, type TvScene } from '../../api/event';
 import { useActiveBracket, useDirectory, type MatchView } from '../../hooks/bracket';
 import { db, useDoc, useQuery } from '../../hooks/firestore';
@@ -58,7 +59,8 @@ export function AdminPage() {
   const { bracketId, bracket, matches, season, paused } = useActiveBracket();
   const directory = useDirectory();
   const seasonDoc = useDoc<{ status?: SeasonStatus; bracketSize?: number; qualifierStart?: Timestamp; qualifierEnd?: Timestamp }>(`seasons/${season.id}`);
-  const tv = useDoc<{ scene?: TvScene; autoCycle?: boolean; selectionStep?: number | null; introMatchId?: string | null }>('tv/state');
+  const tv = useDoc<{ scene?: TvScene; autoCycle?: boolean; selectionStep?: number | null; introMatchId?: string | null; awardsStep?: number | null }>('tv/state');
+  const awards = useDoc<{ items?: { key: string; emoji: string; title: string; winners: { displayName: string }[] }[] }>(`awards/${season.id}`);
   const games = useQuery<LiveGameRow>(query(collection(db, 'games'), where('status', '==', 'in_progress'), limit(50)), 'admin-live-games');
   const banners = useQuery<{ text: string; level: string; active: boolean; expiresAt?: Timestamp }>(
     query(collection(db, 'announcements'), where('active', '==', true), orderBy('createdAt', 'desc'), limit(10)),
@@ -81,6 +83,7 @@ export function AdminPage() {
         <h1 className="font-display text-4xl font-extrabold">Mission Control</h1>
         <Link to="/tv" target="_blank" className="ml-auto text-gold underline">Open TV ↗</Link>
         <Link to="/admin/signs" className="text-gold underline">Table signs 🖨️</Link>
+        <Link to="/admin/print" className="text-gold underline">Print bracket 🖨️</Link>
       </div>
       {(error || ok) && (
         <div role="status" className={`rounded-xl px-4 py-2 text-sm ${error ? 'bg-card-red/20 text-red-100' : 'bg-card-green/20'}`}>{error || ok}</div>
@@ -252,6 +255,14 @@ export function AdminPage() {
               busy={!!busy}
             />
           )}
+          <AwardsControls
+            scene={tv.data?.scene}
+            step={tv.data?.awardsStep ?? 0}
+            items={awards.data?.items ?? []}
+            busy={!!busy}
+            onCompute={() => void run('awards', () => eventApi.computeAwards(), 'Awards computed 🏅')}
+            onStep={(step) => void run('tv', () => eventApi.setTvScene('awards', { awardsStep: step, autoCycle: false }), step === 0 ? 'Awards on the TV' : `Award ${step}`)}
+          />
           <h2 className="font-display pt-2 text-2xl font-extrabold">Season</h2>
           <p className="text-sm text-ink-muted">
             {season.id} · status <strong>{seasonDoc.data?.status ?? 'setup'}</strong>
@@ -265,6 +276,7 @@ export function AdminPage() {
           <p className="text-xs text-ink-muted">"Event" switches everyone's home screen to the Event Hub.</p>
         </Panel>
       </div>
+      <StatsPanel />
       <ErrorText>{error}</ErrorText>
       <div className="flex flex-wrap gap-2 text-sm text-ink-muted">
         Champion: {bracket?.championUid ? (
@@ -301,5 +313,98 @@ function SelectionShowControls({ scene, step, size, nameOfSeed, onStep, busy }: 
         )}
       </div>
     </div>
+  );
+}
+
+/** Awards ceremony remote (PRD E14): compute from the data, then reveal one superlative per Next. */
+function AwardsControls({ scene, step, items, busy, onCompute, onStep }: { scene?: TvScene; step: number; items: { key: string; emoji: string; title: string; winners: { displayName: string }[] }[]; busy: boolean; onCompute: () => void; onStep: (step: number) => void }) {
+  const live = scene === 'awards';
+  const n = items.length;
+  const current = step >= 1 && step <= n ? items[step - 1] : undefined;
+  const label = !live ? 'Not on the TV' : step === 0 ? 'Title card' : current ? `${current.emoji} ${current.title}: ${current.winners.map((w) => w.displayName).join(' & ')}` : 'Recap of every award';
+  return (
+    <div className="space-y-2 rounded-xl bg-white/5 p-3">
+      <p className="text-sm font-semibold">🏅 Awards · <span className="text-ink-muted">{n ? label : 'Not computed yet'}</span></p>
+      <div className="flex flex-wrap gap-2">
+        <Button variant="ghost" className="py-1 text-sm" disabled={busy} onClick={onCompute} title="Recompute from the latest stats (safe to repeat)">
+          {n ? 'Recompute' : 'Compute awards'}
+        </Button>
+        {n > 0 && !live && <Button className="py-1 text-sm" disabled={busy} onClick={() => onStep(0)}>Start on the TV</Button>}
+        {n > 0 && live && (
+          <>
+            <Button variant="ghost" className="py-1 text-sm" disabled={busy || step === 0} onClick={() => onStep(step - 1)}>◀ Back</Button>
+            <Button className="py-1 text-sm" disabled={busy || step > n} onClick={() => onStep(step + 1)}>
+              {step < n ? `Reveal ${items[step]!.title}` : 'Show the recap'} ▶
+            </Button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** PRD AD10: the §13 success metrics, fetched on demand. */
+function StatsPanel() {
+  const [stats, setStats] = useState<SeasonStats | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+  async function load() {
+    setLoading(true);
+    setErr('');
+    try {
+      setStats(await eventApi.adminStats());
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : 'Could not load stats.');
+    } finally {
+      setLoading(false);
+    }
+  }
+  const peak = Math.max(1, ...(stats?.daily ?? []).map((d) => d.activePlayers));
+  return (
+    <Panel className="space-y-3">
+      <div className="flex items-center gap-3">
+        <h2 className="font-display text-2xl font-extrabold">Stats</h2>
+        <Button variant="ghost" className="ml-auto py-1 text-sm" disabled={loading} onClick={() => void load()}>
+          {stats ? 'Refresh' : 'Load stats'}
+        </Button>
+      </div>
+      <ErrorText>{err}</ErrorText>
+      {stats && (
+        <>
+          <table className="w-full text-sm">
+            <thead className="text-left text-xs uppercase tracking-wide text-ink-muted">
+              <tr><th className="py-1">Metric</th><th>Now</th><th>Target</th></tr>
+            </thead>
+            <tbody>
+              {stats.metrics.map((m) => (
+                <tr key={m.key} className="border-t border-white/5">
+                  <td className="py-1.5">{m.label}</td>
+                  <td className="font-semibold">
+                    <span aria-hidden className="mr-1">{m.ok === null ? '·' : m.ok ? '✅' : '⚠️'}</span>
+                    <span className="sr-only">{m.ok === null ? 'No data yet: ' : m.ok ? 'On target: ' : 'Below target: '}</span>
+                    {m.value}
+                  </td>
+                  <td className="text-ink-muted">{m.target}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {stats.daily.length > 0 && (
+            <div>
+              <p className="mb-1 text-xs uppercase tracking-wide text-ink-muted">Daily active players · ranked games</p>
+              <ul className="space-y-1 text-xs">
+                {stats.daily.slice(-14).map((d) => (
+                  <li key={d.day} className="flex items-center gap-2">
+                    <span className="w-20 text-ink-muted">{d.day.slice(5)}</span>
+                    <span className="h-3 rounded bg-card-blue" style={{ width: `${(d.activePlayers / peak) * 60}%` }} aria-hidden />
+                    <span>{d.activePlayers} players · {d.rankedGames} ranked</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </>
+      )}
+    </Panel>
   );
 }

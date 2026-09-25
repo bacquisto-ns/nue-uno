@@ -241,3 +241,121 @@ export function SelectionShow({ step, bracket, matches, directory }: { step: num
     </div>
   );
 }
+
+// ---- Awards (PRD E14) --------------------------------------------------------------------------
+
+export interface AwardItem {
+  key: string;
+  emoji: string;
+  title: string;
+  blurb: string;
+  winners: { uid: string | null; displayName: string }[];
+  statLine: string;
+}
+
+function Winners({ award, directory, size }: { award: AwardItem; directory: Record<string, DirectoryCard>; size: number }) {
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-[2vw]">
+      {award.winners.map((w) => {
+        const c = w.uid ? directory[w.uid] : undefined;
+        return (
+          <div key={w.uid ?? w.displayName} className="flex flex-col items-center gap-[0.6vw]">
+            {c ? (
+              <Avatar avatarId={c.avatarId} color={c.avatarColor} size={size} label="" />
+            ) : (
+              <span className="grid place-items-center rounded-full bg-white/10" style={{ width: size, height: size, fontSize: size * 0.5 }}>
+                {award.emoji}
+              </span>
+            )}
+            <span className="font-display text-center font-extrabold leading-none" style={{ fontSize: size * 0.28 }}>
+              {w.displayName}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * One superlative at a time (motion spec §6 "Awards"): the envelope flips to reveal the winner and
+ * their stat line with `win-sting`. awardsStep 0 = title card, k = award k, count + 1 = recap grid.
+ */
+export function AwardsScene({ step, items, directory }: { step: number; items: AwardItem[] | null; directory: Record<string, DirectoryCard> }) {
+  const current = step >= 1 && items ? items[step - 1] : undefined;
+  const [opened, setOpened] = useState<string | null>(null);
+  const key = current ? `${step}-${current.key}` : null;
+
+  useEffect(() => {
+    if (!key) return;
+    play('drumroll');
+    const t = window.setTimeout(() => {
+      setOpened(key);
+      play('win-sting');
+      if (key.endsWith('champion')) play('cheer', 300);
+    }, 1800);
+    return () => window.clearTimeout(t);
+  }, [key]);
+
+  if (!items || items.length === 0) {
+    return (
+      <div className="grid h-full place-items-center text-center">
+        <p className="font-display text-[4vw] font-extrabold">Awards coming soon…</p>
+      </div>
+    );
+  }
+
+  if (step === 0) {
+    return (
+      <div className="grid h-full place-items-center text-center">
+        <m.div initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={spring.bouncy}>
+          <p className="text-[8vw]">🏅</p>
+          <p className="font-display text-[8vw] font-extrabold leading-none">
+            <span className="text-gold">THE</span> AWARDS
+          </p>
+          <p className="mt-[2vw] text-[2.2vw] text-ink-muted">{items.length} superlatives, straight from the data</p>
+        </m.div>
+      </div>
+    );
+  }
+
+  if (!current) {
+    return (
+      <div className="grid h-full grid-cols-4 content-center gap-[1.5vw]">
+        {items.map((a, i) => (
+          <m.div key={a.key} initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ ...spring.soft, delay: i * 0.08 }} className="flex flex-col items-center gap-[0.6vw] rounded-[1.2vw] bg-felt-900/90 p-[1.2vw] text-center ring-1 ring-white/10">
+            <span className="text-[3vw]">{a.emoji}</span>
+            <span className="font-display text-[1.6vw] font-extrabold text-gold">{a.title}</span>
+            <Winners award={a} directory={directory} size={64} />
+          </m.div>
+        ))}
+      </div>
+    );
+  }
+
+  const isOpen = opened === key;
+  return (
+    <div className="grid h-full place-items-center">
+      <AnimatePresence mode="wait">
+        <m.div key={key} initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -60, opacity: 0 }} transition={spring.soft} style={{ perspective: 1600 }}>
+          <m.div className="relative h-[34vw] w-[52vw]" style={{ transformStyle: 'preserve-3d' }} animate={{ rotateX: isOpen ? 180 : 0 }} transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}>
+            {/* Envelope front */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-[1vw] rounded-[1.5vw] bg-gradient-to-br from-gold to-card-red text-felt-950 ring-4 ring-white/80 [backface-visibility:hidden]">
+              <span className="text-[7vw]">{current.emoji}</span>
+              <span className="font-display text-[4.5vw] font-extrabold leading-none">{current.title}</span>
+              <span className="text-[1.8vw] font-semibold">{current.blurb}</span>
+            </div>
+            {/* The winner */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-[1.2vw] rounded-[1.5vw] bg-felt-900 p-[2vw] ring-4 ring-gold [backface-visibility:hidden] [transform:rotateX(180deg)]">
+              <span className="font-display text-[2.4vw] font-extrabold text-gold">
+                {current.emoji} {current.title}
+              </span>
+              <Winners award={current} directory={directory} size={current.winners.length > 1 ? 150 : 210} />
+              <span className="text-[2vw] font-semibold">{current.statLine}</span>
+            </div>
+          </m.div>
+        </m.div>
+      </AnimatePresence>
+    </div>
+  );
+}

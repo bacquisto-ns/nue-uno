@@ -146,7 +146,7 @@ function Row({ s, me, delta, cutAfter, bracketSize, full }: { s: Standing; me: b
         <AnimatePresence>
           {delta ? (
             <m.span key={`${delta}`} initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ opacity: 0 }}
-              className={`rounded-full px-2 py-0.5 text-xs font-bold ${delta > 0 ? 'bg-card-green/80' : 'bg-card-red/80'}`}>
+              className={`rounded-full px-2 py-0.5 text-xs font-bold ${delta > 0 ? 'bg-success' : 'bg-alert'} text-white`}>
               {delta > 0 ? `▲${delta}` : `▼${-delta}`}
             </m.span>
           ) : null}

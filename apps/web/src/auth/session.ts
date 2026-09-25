@@ -13,6 +13,7 @@ export interface UserProfile {
   attendingEvent: 'yes' | 'no' | 'maybe';
   settings?: { effects?: EffectsMode; sound?: boolean; haptics?: boolean; emotesMuted?: boolean };
   isAdmin?: boolean;
+  tutorialDone?: boolean;
   activeGameId?: string | null;
 }
 

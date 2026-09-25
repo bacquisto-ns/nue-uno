@@ -72,7 +72,7 @@ export function LiveOverlays() {
             exit={{ y: -60 }}
             transition={spring.soft}
             role="status"
-            className={`fixed inset-x-0 top-0 z-50 px-4 py-2 text-center text-sm font-semibold shadow-lg ${banner.level === 'urgent' ? 'bg-card-red text-white' : 'bg-gold text-felt-950'}`}
+            className={`fixed inset-x-0 top-0 z-50 px-4 py-2 text-center text-sm font-semibold shadow-lg ${banner.level === 'urgent' ? 'bg-alert text-white' : 'bg-gold text-felt-950'}`}
           >
             {banner.text}
           </m.div>

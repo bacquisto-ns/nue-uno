@@ -75,7 +75,7 @@ export async function saveProfileHandler(
         },
         isAdmin: req.auth?.token.admin === true,
         activeGameId: existing?.activeGameId ?? null,
-        tutorialDone: existing?.tutorialDone ?? false,
+        tutorialDone: input.tutorialDone ?? existing?.tutorialDone ?? false,
         updatedAt: FieldValue.serverTimestamp(),
         lastSeenAt: FieldValue.serverTimestamp(),
         ...(existing ? {} : { createdAt: FieldValue.serverTimestamp(), firstGameAt: null }),
@@ -84,6 +84,11 @@ export async function saveProfileHandler(
     );
     return next;
   });
+
+  // The tutorial stamp shows up right away; later Passport recomputes keep it (user.tutorialDone).
+  if (input.tutorialDone) {
+    await db.doc(`passport/${uid}`).set({ milestones: FieldValue.arrayUnion('tutorial') }, { merge: true });
+  }
 
   if (status === 'active' && req.auth?.token.active !== true) {
     const user = await adminAuth.getUser(uid);

@@ -13,7 +13,7 @@ import { Avatar } from '../../ui/Avatar';
 import { LiveOverlays } from '../live/LiveOverlays';
 import { BracketBoard } from '../event/BracketBoard';
 import type { TvScene } from '../../api/event';
-import { PlayerIntros, SelectionShow } from './Scenes';
+import { AwardsScene, PlayerIntros, SelectionShow, type AwardItem } from './Scenes';
 
 // Crowd reactions pull in the Realtime Database SDK; load them after the board is up.
 const ReactionLayer = lazy(() => import('../event/Reactions').then((m) => ({ default: m.ReactionLayer })));
@@ -84,7 +84,7 @@ function useQr(text: string): string | null {
  * (tv/state) picks the scene. Designed at 1920×1080; text ≥ 32 px for 5 m readability.
  */
 export function TvPage() {
-  const tv = useDoc<{ scene?: TvScene; autoCycle?: boolean; selectionStep?: number | null; introMatchId?: string | null }>('tv/state');
+  const tv = useDoc<{ scene?: TvScene; autoCycle?: boolean; selectionStep?: number | null; introMatchId?: string | null; awardsStep?: number | null }>('tv/state');
   const { bracketId, bracket, matches, season, paused } = useActiveBracket();
   const directory = useDirectory();
   const liveGames = useQuery<LiveGame>(
@@ -104,7 +104,7 @@ export function TvPage() {
   }, [tv.data?.autoCycle]);
   const anyLive = (liveGames.data ?? []).length > 0;
   const scene: TvScene =
-    bracket?.championUid && tv.data?.scene !== 'bracket'
+    bracket?.championUid && tv.data?.scene !== 'bracket' && tv.data?.scene !== 'awards'
       ? 'champion'
       : tv.data?.autoCycle && !anyLive
         ? (['bracket', 'pickem', 'cup'] as const)[cycle % 3]!
@@ -129,6 +129,7 @@ export function TvPage() {
     [matches],
   );
   const locked = !!bracket && bracket.status !== 'draft';
+  const awards = useDoc<{ items?: AwardItem[] }>(scene === 'awards' ? `awards/${season.id}` : null);
 
   return (
     <main className="felt-grain fixed inset-0 flex flex-col overflow-hidden p-[3vw] text-[1.1vw]">
@@ -170,6 +171,8 @@ export function TvPage() {
               <PickemScene bracketId={bracketId} />
             ) : scene === 'cup' ? (
               <CupScene seasonId={season.id} />
+            ) : scene === 'awards' ? (
+              <AwardsScene step={tv.data?.awardsStep ?? 0} items={awards.data?.items ?? null} directory={directory} />
             ) : scene === 'selection' && locked ? (
               <SelectionShow step={tv.data?.selectionStep ?? 0} bracket={bracket} matches={matches} directory={directory} />
             ) : scene === 'intros' && locked ? (

@@ -1,3 +1,4 @@
+import type { SeasonStats } from '@nue-uno/shared';
 import { call } from './call';
 
 type Ok = { ok: true };
@@ -40,12 +41,14 @@ export const eventApi = {
   clearBroadcast: (id: string) => adminCall<Ok>('clearBroadcast', { id }),
   setTvScene: (
     scene: TvScene,
-    opts: { featuredGameId?: string | null; autoCycle?: boolean; selectionStep?: number | null; introMatchId?: string | null } = {},
+    opts: { featuredGameId?: string | null; autoCycle?: boolean; selectionStep?: number | null; introMatchId?: string | null; awardsStep?: number | null } = {},
   ) =>
     adminCall<Ok>('setTvScene', { scene, ...opts }),
   setSeason: (input: { status?: SeasonStatus; qualifierStartMs?: number; qualifierEndMs?: number; bracketSize?: number }) =>
     adminCall<Ok>('setSeason', input),
   approveUser: (uid: string) => adminCall<Ok>('approveUser', { uid }),
+  computeAwards: () => adminCall<Ok & { count: number }>('computeAwards'),
+  adminStats: () => adminCall<SeasonStats>('adminStats'),
   importRoster: (rows: { email: string; name: string; department: string }[], replace = false) =>
     adminCall<Ok & { imported: number; activated: number }>('importRoster', { rows, replace }),
 };

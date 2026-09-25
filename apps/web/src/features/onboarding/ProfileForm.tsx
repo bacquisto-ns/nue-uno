@@ -62,7 +62,8 @@ export function ProfileForm({ mode }: { mode: 'welcome' | 'edit' }) {
     try {
       const res = await call<SaveProfileInput, { ok: true; status: string }>('saveProfile', parsed.data);
       if (res.status === 'active') await refreshClaims();
-      navigate('/', { replace: true });
+      // First run: offer the 2-minute tutorial (PRD O2). It has a "Skip for now" link.
+      navigate(mode === 'welcome' && res.status === 'active' ? '/tutorial' : '/', { replace: true });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Something went wrong. Try again.');
     } finally {

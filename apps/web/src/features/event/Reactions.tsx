@@ -187,7 +187,7 @@ export function ReactionLayer({ targets, onReaction }: { targets: string[]; onRe
         return (
           <div
             key={`total-${t}`}
-            className={`absolute rounded-full px-3 py-1 text-[1.3vw] font-bold shadow-lg ring-1 ring-white/20 ${hot ? 'animate-pulse bg-card-red text-white' : 'bg-felt-900 text-ink'}`}
+            className={`absolute rounded-full px-3 py-1 text-[1.3vw] font-bold shadow-lg ring-1 ring-white/20 ${hot ? 'animate-pulse bg-alert text-white' : 'bg-felt-900 text-ink'}`}
             style={{ left: r.left + r.width / 2, top: r.top, transform: 'translate(-50%, -50%)' }}
           >
             {hot ? '🔥 HYPE ' : '📣 '}
