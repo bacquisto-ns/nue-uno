@@ -49,8 +49,12 @@ describe('public-to-players data', () => {
     for (const p of paths) await assertSucceeds(getDoc(doc(as('player'), p)));
   });
 
-  it('pending, unverified, outsider and look-alike domains cannot', async () => {
-    for (const who of ['pending', 'unverified', 'outsider', 'lookalike'] as const) {
+  it('an unverified company account (password sign-in, ADR-3) can once active', async () => {
+    for (const p of paths) await assertSucceeds(getDoc(doc(as('unverified'), p)));
+  });
+
+  it('pending, outsider and look-alike domains cannot', async () => {
+    for (const who of ['pending', 'outsider', 'lookalike'] as const) {
       for (const p of paths.filter((x) => x !== 'users/pending')) {
         await assertFails(getDoc(doc(as(who), p)));
       }

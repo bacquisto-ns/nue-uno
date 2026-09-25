@@ -5,9 +5,9 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{db}/documents {
 
+    // Company email only. Not email_verified: password accounts skip verification (ADR-3).
     function signedInEmployee() {
       return request.auth != null
-        && request.auth.token.email_verified == true
         && request.auth.token.email.matches('.*@nuesynergy[.]com$');
     }
     function isPlayer() { return signedInEmployee() && request.auth.token.active == true; }

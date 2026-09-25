@@ -7,7 +7,7 @@ Every change to Firestore made by a client goes through a **2nd-gen callable** (
 ## 1. Conventions
 
 **Guards.** Every callable runs these in order:
-1. `requireEmployee(req)`: signed in, `email_verified`, and a company email. Otherwise `permission-denied`.
+1. `requireEmployee(req)`: signed in with a company email. Otherwise `permission-denied`. `email_verified` isn't required, because password accounts skip verification ([architecture ADR-3](architecture.md#adr-3-password-or-email-link-auth-company-domain-and-roster-approval)).
 2. `requirePlayer(req)`: the `active` claim. Only `saveProfile` skips this, because it's the call that activates a user.
 3. `requireAdmin(req)`: only for admin functions.
 4. `schema.parse(req.data)`. Otherwise `invalid-argument`.

@@ -15,6 +15,7 @@ import type { EffectsMode } from '../../motion/effectsMode';
 import { spring } from '../../motion/tokens';
 import { AVATAR_COLOR_VALUES, Avatar } from '../../ui/Avatar';
 import { Button, ErrorText, Logo, Panel, Screen } from '../../ui/primitives';
+import { PasswordPanel } from './PasswordPanel';
 
 function suggestName(email: string | null | undefined): string {
   const local = (email ?? '').split('@')[0] ?? '';
@@ -203,6 +204,7 @@ export function ProfileForm({ mode }: { mode: 'welcome' | 'edit' }) {
           </Button>
         </form>
       </Panel>
+      {mode === 'edit' && <PasswordPanel />}
     </Screen>
   );
 }

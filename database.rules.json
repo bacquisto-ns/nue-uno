@@ -3,9 +3,9 @@
     ".read": false,
     ".write": false,
     "status": {
-      ".read": "auth != null && auth.token.active === true && auth.token.email_verified === true && auth.token.email.matches(/.*@nuesynergy\\.com$/)",
+      ".read": "auth != null && auth.token.active === true && auth.token.email.matches(/.*@nuesynergy\\.com$/)",
       "$uid": {
-        ".write": "auth != null && auth.uid === $uid && auth.token.active === true && auth.token.email_verified === true && auth.token.email.matches(/.*@nuesynergy\\.com$/)",
+        ".write": "auth != null && auth.uid === $uid && auth.token.active === true && auth.token.email.matches(/.*@nuesynergy\\.com$/)",
         ".validate": "newData.hasChildren(['state', 'at']) && newData.child('state').isString() && newData.child('state').val().matches(/^(online|offline)$/) && newData.child('at').isNumber() && newData.child('at').val() <= now + 1000",
         "state": { ".validate": true },
         "at": { ".validate": true },
@@ -18,9 +18,9 @@
     },
     "emotes": {
       "$gameId": {
-        ".read": "auth != null && auth.token.active === true && auth.token.email_verified === true && auth.token.email.matches(/.*@nuesynergy\\.com$/)",
+        ".read": "auth != null && auth.token.active === true && auth.token.email.matches(/.*@nuesynergy\\.com$/)",
         "$uid": {
-          ".write": "auth != null && auth.uid === $uid && auth.token.active === true && auth.token.email_verified === true && auth.token.email.matches(/.*@nuesynergy\\.com$/) && (!data.exists() || (newData.exists() && newData.child('at').val() >= data.child('at').val() + 3000))",
+          ".write": "auth != null && auth.uid === $uid && auth.token.active === true && auth.token.email.matches(/.*@nuesynergy\\.com$/) && (!data.exists() || (newData.exists() && newData.child('at').val() >= data.child('at').val() + 3000))",
           ".validate": "newData.hasChildren(['e', 'at']) && newData.child('e').isString() && newData.child('e').val().matches(/^(nice|lol|shock|fire|gg|evil|eyes|salute)$/) && newData.child('at').isNumber() && newData.child('at').val() <= now + 1000",
           "e": { ".validate": true },
           "at": { ".validate": true },
@@ -30,9 +30,9 @@
     },
     "reactions": {
       "$targetId": {
-        ".read": "auth != null && auth.token.active === true && auth.token.email_verified === true && auth.token.email.matches(/.*@nuesynergy\\.com$/)",
+        ".read": "auth != null && auth.token.active === true && auth.token.email.matches(/.*@nuesynergy\\.com$/)",
         "$uid": {
-          ".write": "auth != null && auth.uid === $uid && auth.token.active === true && auth.token.email_verified === true && auth.token.email.matches(/.*@nuesynergy\\.com$/) && (!data.exists() || (newData.exists() && newData.child('at').val() >= data.child('at').val() + 1000))",
+          ".write": "auth != null && auth.uid === $uid && auth.token.active === true && auth.token.email.matches(/.*@nuesynergy\\.com$/) && (!data.exists() || (newData.exists() && newData.child('at').val() >= data.child('at').val() + 1000))",
           ".validate": "newData.hasChildren(['r', 'at']) && newData.child('r').isString() && newData.child('r').val().matches(/^(fire|clap|shock|party)$/) && newData.child('at').isNumber() && newData.child('at').val() <= now + 1000",
           "r": { ".validate": true },
           "at": { ".validate": true },

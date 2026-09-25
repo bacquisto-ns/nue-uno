@@ -104,17 +104,19 @@ describe('saveProfile', () => {
     });
   });
 
-  it('rejects outsiders, unverified emails, bad input and disabled accounts', async () => {
+  it('rejects outsiders, bad input and disabled accounts; accepts unverified company emails', async () => {
     const outsider = await makeUser('ux', 'x@gmail.com');
     await expect(saveProfileHandler({ ...outsider, data: profile('X') })).rejects.toMatchObject({
       details: { reason: 'NOT_EMPLOYEE' },
     });
+    // Password accounts aren't email-verified; the company domain is the lock (ADR-3).
+    await makeUser('uv', 'v@nuesynergy.com');
     await expect(
       saveProfileHandler({
         auth: { uid: 'uv', token: { email: 'v@nuesynergy.com', email_verified: false } as never, rawToken: '' },
-        data: profile('V'),
+        data: profile('Vee'),
       }),
-    ).rejects.toMatchObject({ details: { reason: 'NOT_EMPLOYEE' } });
+    ).resolves.toMatchObject({ ok: true });
     await expect(saveProfileHandler({ auth: undefined, data: profile('Nobody') })).rejects.toMatchObject({
       code: 'unauthenticated',
     });
