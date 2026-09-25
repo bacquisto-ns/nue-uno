@@ -34,6 +34,8 @@ export const SaveProfileInput = z.object({
     })
     .partial()
     .optional(),
+  /** Sent once when the tutorial is finished (PRD O2); earns the Passport "tutorial" stamp. */
+  tutorialDone: z.literal(true).nullish(),
 });
 export type SaveProfileInput = z.infer<typeof SaveProfileInput>;
 

@@ -12,6 +12,7 @@ const HomeSwitch = page(() => import('./features/home/HomeSwitch'), 'HomeSwitch'
 const Lobby = page(() => import('./features/lobby/Lobby'), 'Lobby');
 const TablePage = page(() => import('./features/table/TablePage'), 'TablePage');
 const PracticeGame = page(() => import('./features/practice/PracticeGame'), 'PracticeGame');
+const TutorialPage = page(() => import('./features/tutorial/TutorialPage'), 'TutorialPage');
 const RulesPage = page(() => import('./features/rules/RulesPage'), 'RulesPage');
 const LeaderboardPage = page(() => import('./features/leaderboard/LeaderboardPage'), 'LeaderboardPage');
 const PassportPage = page(() => import('./features/passport/PassportPage'), 'PassportPage');
@@ -43,6 +44,7 @@ export const router = createBrowserRouter([
   { path: '/lobby', element: authed(<Lobby />) },
   { path: '/t/:gameId', element: authed(<TablePage />) },
   { path: '/practice', element: authed(<PracticeGame />) },
+  { path: '/tutorial', element: authed(<TutorialPage />) },
   { path: '/profile', element: authed(<ProfileForm mode="edit" />) },
   { path: '/leaderboard', element: authed(<LeaderboardPage />) },
   { path: '/passport', element: authed(<PassportPage />) },

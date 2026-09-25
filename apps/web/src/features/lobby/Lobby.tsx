@@ -126,6 +126,16 @@ export function Lobby() {
         <Link to="/passport" className="rounded-2xl bg-white/5 px-4 py-3 font-semibold ring-1 ring-white/10 hover:bg-white/10">🛂 My Passport</Link>
       </nav>
 
+      {!profile.tutorialDone && (
+        <Link to="/tutorial" className="flex items-center gap-3 rounded-2xl bg-gold/15 px-4 py-3 ring-1 ring-gold/40 hover:bg-gold/25">
+          <span className="text-2xl" aria-hidden>🦉</span>
+          <span className="flex-1">
+            <strong>New to Uno?</strong> <span className="text-ink-muted">Take the 2-minute tutorial and earn a Passport stamp.</span>
+          </span>
+          <span aria-hidden>→</span>
+        </Link>
+      )}
+
       <div className="grid gap-3 sm:grid-cols-2">
         <Button className="py-4 text-lg" disabled={!!busy} onClick={() => void go('quick', gameApi.quickMatch)}>
           {busy === 'quick' ? 'Finding a table…' : '⚡ Quick Match (ranked)'}
