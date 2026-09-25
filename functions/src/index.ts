@@ -26,17 +26,39 @@ import {
   onResultWrittenHandler,
   onUserWrittenHandler,
 } from './derived/recompute.js';
+import {
+  broadcastHandler,
+  checkInAtTableHandler,
+  checkInMatchHandler,
+  clearBroadcastHandler,
+  editBracketSeedsHandler,
+  generateBracketHandler,
+  lockBracketHandler,
+  overrideMatchResultHandler,
+  pauseAllHandler,
+  restartMatchGameHandler,
+  resumeAllHandler,
+  setPhysicalTablesHandler,
+  setSeasonHandler,
+  setTvSceneHandler,
+  startMatchHandler,
+  submitPicksHandler,
+  voidGameHandler,
+} from './event/callables.js';
 import { saveProfileHandler } from './profile.js';
 import { markInboxSeenHandler } from './social/nudges.js';
 import { teamsDigest, unoHourAnnouncer } from './social/schedules.js';
 import { TEAMS_WEBHOOK_URL } from './teams.js';
 
-setGlobalOptions({ region: 'us-central1', maxInstances: 10 });
+// Cloud Run reserves regional CPU quota per function × maxInstances; a new project's quota is small.
+// ~50 players need very little: 3 instances per function (moves: 5 × concurrency 80).
+setGlobalOptions({ region: 'us-central1', maxInstances: 3 });
 
 // Move functions are latency-sensitive: keep one instance warm when WARM_MOVE_FUNCTIONS=true
 // (Uno Hours / event day — architecture §6).
 const moveOpts: CallableOptions = {
   minInstances: process.env.WARM_MOVE_FUNCTIONS === 'true' ? 1 : 0,
+  maxInstances: 5,
   concurrency: 80,
 };
 
@@ -71,7 +93,7 @@ export const cleanupStaleGamesDaily = onSchedule(
 export const markInboxSeen = onCall((req) => markInboxSeenHandler(req));
 
 // Derived data (ADR-5): recomputed from source, so re-deliveries and voids converge.
-export const onResultWritten = onDocumentWritten('results/{gameId}', (event) =>
+export const onResultWritten = onDocumentWritten({ document: 'results/{gameId}', secrets: [TEAMS_WEBHOOK_URL] }, (event) =>
   onResultWrittenHandler(event.data?.before.data(), event.data?.after.data()),
 );
 export const onLeaderboardEntryWritten = onDocumentWritten(
@@ -96,3 +118,22 @@ export const unoHourAnnouncerJob = onSchedule(
     await unoHourAnnouncer();
   },
 );
+
+// Event day (Week 4): bracket, check-in, Pick'em, live controls. Contracts in docs/engineering/api.md.
+export const checkInMatch = onCall(moveOpts, (req) => checkInMatchHandler(req));
+export const checkInAtTable = onCall(moveOpts, (req) => checkInAtTableHandler(req));
+export const submitPicks = onCall((req) => submitPicksHandler(req));
+export const generateBracket = onCall((req) => generateBracketHandler(req));
+export const editBracketSeeds = onCall((req) => editBracketSeedsHandler(req));
+export const setPhysicalTables = onCall((req) => setPhysicalTablesHandler(req));
+export const lockBracket = onCall({ secrets: [TEAMS_WEBHOOK_URL] }, (req) => lockBracketHandler(req));
+export const startMatch = onCall((req) => startMatchHandler(req));
+export const overrideMatchResult = onCall({ secrets: [TEAMS_WEBHOOK_URL] }, (req) => overrideMatchResultHandler(req));
+export const restartMatchGame = onCall((req) => restartMatchGameHandler(req));
+export const voidGame = onCall({ secrets: [TEAMS_WEBHOOK_URL] }, (req) => voidGameHandler(req));
+export const pauseAll = onCall((req) => pauseAllHandler(req));
+export const resumeAll = onCall((req) => resumeAllHandler(req));
+export const broadcast = onCall((req) => broadcastHandler(req));
+export const clearBroadcast = onCall((req) => clearBroadcastHandler(req));
+export const setTvScene = onCall((req) => setTvSceneHandler(req));
+export const setSeason = onCall((req) => setSeasonHandler(req));

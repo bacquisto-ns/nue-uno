@@ -11,6 +11,7 @@ import { FieldValue, Timestamp, type DocumentData } from 'firebase-admin/firesto
 import { db } from '../admin.js';
 import { getSeason } from '../season.js';
 import { adaptiveCard, appUrl, postToTeams } from '../teams.js';
+import { recomputeBracket } from '../event/bracket.js';
 
 const toResult = (id: string, d: DocumentData): ResultDoc => ({
   id,
@@ -78,6 +79,8 @@ export async function onResultWrittenHandler(before: DocumentData | undefined, a
   if (!doc) return;
   const uids = new Set<string>([...(before?.playerUids ?? []), ...(after?.playerUids ?? [])]);
   for (const uid of uids) await recomputePlayer(uid, doc.seasonId);
+  // Bracket games also advance the bracket (tournament.md §3 — recomputed from source).
+  if (doc.bracketId) await recomputeBracket(doc.bracketId);
 }
 
 /** Recompute one department's Cup entry from its members' leaderboard entries. */
