@@ -6,6 +6,7 @@ import { gameApi } from '../../api/game';
 import { useSession } from '../../auth/session';
 import type { TableActions, TableViewModel } from '../../game/view';
 import { db, useDoc, useQuery } from '../../hooks/firestore';
+import type { FxEvent } from './EffectsLayer';
 import { TableView } from './TableView';
 
 export interface GameDocData {
@@ -65,14 +66,15 @@ export function OnlineGame({ gameId, game, fromCache, pending }: { gameId: strin
   const { user, profile } = useSession();
   const uid = user!.uid;
   const hand = useDoc<{ cards: Card[]; drawnCardId: string | null }>(`games/${gameId}/hands/${uid}`);
-  const recent = useQuery<{ type: string; uid?: string; seq: number }>(
-    query(collection(db, `games/${gameId}/events`), orderBy('seq', 'desc'), limit(8)),
+  const recent = useQuery<FxEvent>(
+    query(collection(db, `games/${gameId}/events`), orderBy('seq', 'desc'), limit(12)),
     `events-${gameId}`,
   );
   const serverNow = useServerClock(game.updatedAt, pending);
   const online = useOnline();
 
   const lastPlayedBy = recent.data?.find((e) => e.type === 'card_played')?.uid ?? null;
+  const fxEvents = useMemo(() => [...(recent.data ?? [])].sort((a, b) => a.seq - b.seq), [recent.data]);
 
   const view: TableViewModel = useMemo(
     () => ({
@@ -159,6 +161,7 @@ export function OnlineGame({ gameId, game, fromCache, pending }: { gameId: strin
       totalTurnMs={game.turnMs ?? DEFAULT_SEASON_SETTINGS.timers.casualMs}
       haptics={profile?.settings?.haptics ?? true}
       offline={!online || fromCache}
+      events={fxEvents}
     />
   );
 }

@@ -39,6 +39,11 @@ export class EventQueue<E extends QueuedEvent> {
     };
   }
 
+  /** Swap playback callbacks (e.g. when the effects mode changes) without losing queue state. */
+  configure(opts: Partial<Pick<EventQueueOptions<E>, 'play' | 'fastForward' | 'onIdle'>>): void {
+    Object.assign(this.opts, opts);
+  }
+
   get idle(): boolean {
     return !this.playing && this.queue.length === 0;
   }
