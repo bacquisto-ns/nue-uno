@@ -20,7 +20,7 @@ flowchart LR
   end
 
   subgraph Firebase
-    AUTH[Firebase Auth<br/>email link + custom claims]
+    AUTH[Firebase Auth<br/>password or email link + custom claims]
     HOST[Firebase Hosting]
     FN["Cloud Functions v2<br/>callables · triggers · schedules<br/>(@nue-uno/engine)"]
     FS[(Cloud Firestore<br/>system of record)]
@@ -79,7 +79,7 @@ sequenceDiagram
 | Motion & effects | **Framer Motion** (springs, layout and FLIP animation, drag), **canvas-confetti** (particles, runs in a worker), **Web Audio** (synthesized sounds, no sprite file), CSS 3D for card flips | Covers the whole [motion spec](../design/experience-and-motion.md) without a 3D engine. Loaded only when a game opens. |
 | PWA | `vite-plugin-pwa` (manifest, icons, caching of the app shell and static assets) | Installable, full-screen, fast to reopen |
 | Hosting | Firebase Hosting (SPA rewrite) | Required |
-| Auth | Firebase Auth email link + **custom claims** (`admin`, `active`) | Required. Claims make permission checks in rules cheap. |
+| Auth | Firebase Auth email + password (default) or email link, plus **custom claims** (`admin`, `active`) | Required. Claims make permission checks in rules cheap. |
 | Database | Cloud Firestore (Native, `nam5`) + **Realtime Database** (`us-central1`) | Firestore for durable data, RTDB for presence and short-lived social data |
 | Server | Cloud Functions for Firebase 2nd gen, Node 22 | Callables, Firestore triggers, `onSchedule` jobs |
 | Secrets | Secret Manager via `defineSecret` | Teams webhook URL |
@@ -97,16 +97,29 @@ sequenceDiagram
 ### ADR-2: One shared, pure engine package
 `packages/engine` has no I/O, no clock, and no `Math.random`. It exports types plus `createGame`, `applyAction`, `legalActions`, `rankPlayers`, and `botAction`. Functions use it as the authority. The client uses it for hints, and it runs practice and tutorial games locally. The RNG is seeded, so every game can be replayed. See [game-engine.md](game-engine.md).
 
-### ADR-3: Email-link auth, company domain, and roster approval
-1. The **UI** rejects non-`@nuesynergy.com` emails before calling `sendSignInLinkToEmail`.
+### ADR-3: Password or email-link auth, company domain, and roster approval
+1. The **UI** rejects non-`@nuesynergy.com` emails before creating an account, signing in with a password, or calling `sendSignInLinkToEmail`.
 2. The **custom claim `active: true`** is required for every read of player data (Firestore and RTDB rules) and by every player callable. `saveProfile` sets it when the email is on the imported **roster**, or right away if `config/app.rosterRequired == false`. Otherwise the user stays *pending* until an admin runs `approveUser`. After the claim changes, the client refreshes its ID token with `getIdToken(true)`.
-3. **Rules and functions** also check `email_verified` and the domain pattern, as a second layer of defense.
+3. **Rules and functions** also check the domain pattern (`requireEmployee`, `signedInEmployee()`, and the RTDB rules), as a second layer of defense. They do **not** require `email_verified` (see the 2026-09-25 revision below).
 4. **Admins** have the claim `admin: true`, set by `scripts/grant-admin.ts`.
 5. Optional: upgrade to Identity Platform and add a `beforeUserCreated` blocking function. Decide in Week 1.
 
 **Flow:** `sendSignInLinkToEmail(email, { url: <origin>/auth/finish, handleCodeInApp: true })` → `/auth/finish` → `signInWithEmailLink` (ask for the email again if the link was opened on another device). Persistence is `browserLocalPersistence`, and email enumeration protection is turned on.
 
 **Risk:** M365 quarantine or Safe Links may break the emails. Test with IT in Week 1. The fallback is the Microsoft OIDC provider.
+
+**Revision (2026-09-25): passwords, no email verification.** Sign-in emails from `noreply@nue-uno-*.firebaseapp.com` weren't reaching company inboxes. The product owner chose **email + password** as the default sign-in, with the email link kept as an option.
+- **What changed:**
+  - The sign-in page defaults to Sign in / Create account with a password (8+ characters).
+  - "Forgot password?" sends a reset email.
+  - The profile page has a **Password** panel so existing email-link accounts can set one.
+  - `email_verified` is no longer required by `requireEmployee`, the Firestore rules or the RTDB rules. The domain check stays everywhere.
+- **Accepted risk:** without verification, anyone can create an account under any `@nuesynergy.com` address, including a coworker's that hasn't been claimed yet, and play under that name. The owner accepted this for an internal game.
+- **Mitigations:**
+  - The real owner can't be locked out silently: "Create account" fails with "already has an account", and they can use "Forgot password?" to take the account back, since the reset email goes to the real inbox.
+  - An admin can disable a bad account in the Firebase console (Authentication → the user → Disable account). There's no Mission Control screen for this yet: `adminUpdateUser` is planned.
+  - Turning on `config/app.rosterRequired` limits activation to HR roster emails. That still allows impersonation of someone on the roster.
+- **To tighten later:** Microsoft sign-in (Entra ID) proves inbox ownership without email. Or require `email_verified` again once mail delivery is fixed.
 
 ### ADR-4: The server owns the clock (turn timer, grace, Final Lap, pause)
 All time decisions are made in functions, and the engine never reads a clock:
@@ -181,7 +194,7 @@ apps/web/src/
 
 ## 5. Security model summary
 
-`player` means `email_verified` + company domain + claim `active == true`.
+`player` means company domain + claim `active == true` (`email_verified` is not required; ADR-3 revision).
 
 | Resource | Client read | Client write |
 |---|---|---|

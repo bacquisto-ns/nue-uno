@@ -315,7 +315,6 @@ service cloud.firestore {
 
     function signedInEmployee() {
       return request.auth != null
-        && request.auth.token.email_verified == true
         && request.auth.token.email.matches('.*@nuesynergy[.]com$');
     }
     function isPlayer() { return signedInEmployee() && request.auth.token.active == true; }

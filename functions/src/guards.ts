@@ -5,12 +5,16 @@ import { fail } from './errors.js';
 
 type AuthedRequest = Pick<CallableRequest<unknown>, 'auth' | 'data'>;
 
-/** Signed in, verified, company email. Throws otherwise. Returns the caller's uid + email. */
+/**
+ * Signed in with a company email. Throws otherwise. Returns the caller's uid + email.
+ * Email verification is deliberately not required: password sign-in is allowed without a
+ * verification email (decision 2026-09-25, architecture.md ADR-3). The domain check is the lock.
+ */
 export function requireEmployee(req: AuthedRequest): { uid: string; email: string } {
   const auth = req.auth;
   if (!auth) throw fail('unauthenticated', 'NOT_SIGNED_IN', 'Please sign in.');
   const email = auth.token.email;
-  if (auth.token.email_verified !== true || !isCompanyEmail(email)) {
+  if (!isCompanyEmail(email)) {
     throw fail('permission-denied', 'NOT_EMPLOYEE', 'Nue Uno is for NueSynergy employees only.');
   }
   return { uid: auth.uid, email: email!.trim().toLowerCase() };
