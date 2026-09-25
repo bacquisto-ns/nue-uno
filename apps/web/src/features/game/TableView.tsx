@@ -224,7 +224,7 @@ export function TableView({ view, actions, serverNow, totalTurnMs, haptics = tru
           <span className="rounded-full bg-white px-2 py-0.5 text-xs font-bold text-felt-950">🏁 FINAL LAP</span>
         )}
         {view.paused && <span className="rounded-full bg-card-yellow px-2 py-0.5 text-xs font-bold text-felt-950">PAUSED</span>}
-        {offline && <span className="rounded-full bg-card-red/80 px-2 py-0.5 text-xs font-bold">Reconnecting…</span>}
+        {offline && <span className="rounded-full bg-alert px-2 py-0.5 text-xs font-bold text-white">Reconnecting…</span>}
         <span className="ml-auto flex items-center gap-2">
           {headerExtras}
           <SoundToggle />
@@ -335,7 +335,7 @@ export function TableView({ view, actions, serverNow, totalTurnMs, haptics = tru
                 transition={spring.bouncy}
                 onClick={() => setDeclareUno((d) => !d)}
                 aria-pressed={declareUno}
-                className={`font-display rounded-2xl px-4 py-2 text-2xl font-extrabold shadow-lg ${declareUno ? 'bg-gold text-felt-950' : 'bg-card-red text-white animate-[uno-pulse_1.2s_infinite]'}`}
+                className={`font-display rounded-2xl px-4 py-2 text-2xl font-extrabold shadow-lg ${declareUno ? 'bg-gold text-felt-950' : 'bg-alert text-white animate-[uno-pulse_1.2s_infinite]'}`}
               >
                 {declareUno ? 'UNO! ✓' : 'UNO!'}
               </m.button>
@@ -347,7 +347,7 @@ export function TableView({ view, actions, serverNow, totalTurnMs, haptics = tru
                 animate={{ scale: 1 }}
                 exit={{ scale: 0 }}
                 onClick={() => void run(actions.callUno)}
-                className="font-display animate-[uno-pulse_1.2s_infinite] rounded-2xl bg-card-red px-4 py-2 text-2xl font-extrabold text-white"
+                className="font-display animate-[uno-pulse_1.2s_infinite] rounded-2xl bg-alert px-4 py-2 text-2xl font-extrabold text-white"
               >
                 Call UNO!
               </m.button>
@@ -505,7 +505,7 @@ function SeatBadge({
         {seat.away && <span className="rounded bg-white/15 px-1">Away</span>}
         {seat.forfeited && <span className="rounded bg-white/15 px-1">Left</span>}
         {lastTurn && <span className="rounded bg-white px-1 text-felt-950">Last turn</span>}
-        {unoPending && <span className="rounded bg-card-red px-1">No UNO!</span>}
+        {unoPending && <span className="rounded bg-alert px-1 text-white">No UNO!</span>}
       </div>
       {catchable && (
         <m.button
@@ -513,7 +513,7 @@ function SeatBadge({
           animate={{ scale: 1 }}
           transition={spring.bouncy}
           onClick={onCatch}
-          className="font-display rounded-xl bg-card-red px-3 py-1 font-extrabold text-white shadow-lg"
+          className="font-display rounded-xl bg-alert px-3 py-1 font-extrabold text-white shadow-lg"
         >
           Catch! 🎯
         </m.button>

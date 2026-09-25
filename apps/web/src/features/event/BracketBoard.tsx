@@ -6,8 +6,8 @@ import { Avatar } from '../../ui/Avatar';
 const STATUS: Record<MatchView['status'], { label: string; cls: string }> = {
   waiting_for_players: { label: 'Waiting', cls: 'bg-white/10 text-ink-muted' },
   ready: { label: 'Ready', cls: 'bg-gold text-felt-950' },
-  in_progress: { label: 'Live', cls: 'bg-card-red text-white animate-pulse' },
-  complete: { label: 'Done', cls: 'bg-card-green/80 text-white' },
+  in_progress: { label: 'Live', cls: 'bg-alert text-white animate-pulse' },
+  complete: { label: 'Done', cls: 'bg-success text-white' },
 };
 
 /**
@@ -74,7 +74,7 @@ export function BracketBoard({
                         <span className={`truncate ${tv ? 'text-2xl' : 'text-sm'} ${uid ? 'font-semibold' : 'text-ink-muted'}`}>
                           {p?.displayName ?? (uid ? 'Player' : 'TBD')}
                         </span>
-                        {isTurn && <span className="text-xs text-card-red">● turn</span>}
+                        {isTurn && <span className="text-xs text-alert-ink">● turn</span>}
                         {liveInfo && uid && <span className={`ml-auto rounded-full bg-white px-2 font-bold text-felt-950 ${tv ? 'text-lg' : 'text-xs'}`}>{liveInfo.handCounts[uid] ?? '–'}</span>}
                         {!liveInfo && mt.status === 'complete' && place >= 0 && (
                           <span className={`ml-auto font-bold ${tv ? 'text-xl' : 'text-xs'} ${adv ? 'text-gold' : 'text-ink-muted'}`}>
