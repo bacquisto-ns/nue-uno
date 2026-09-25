@@ -1,6 +1,7 @@
 import type { CallableRequest } from 'firebase-functions/v2/https';
 import { z } from 'zod';
 import { approveUserHandler, importRosterHandler } from '../admin/roster.js';
+import { fail } from '../errors.js';
 import { parse, requireAdmin } from '../guards.js';
 import {
   broadcastHandler,
@@ -18,6 +19,7 @@ import {
   startMatchHandler,
   voidGameHandler,
 } from './callables.js';
+import { adminStatsHandler, computeAwardsHandler } from './insights.js';
 
 type Req = Pick<CallableRequest<unknown>, 'auth' | 'data'>;
 type Handler = (req: Req) => Promise<unknown>;
@@ -44,14 +46,19 @@ const ACTIONS: Record<string, Handler> = {
   clearBroadcast: clearBroadcastHandler,
   setTvScene: setTvSceneHandler,
   setSeason: setSeasonHandler,
+  computeAwards: computeAwardsHandler,
+  adminStats: adminStatsHandler,
 };
 
 export const ADMIN_ACTIONS = Object.keys(ACTIONS);
 
-const RouterInput = z.object({ action: z.enum(Object.keys(ACTIONS) as [string, ...string[]]), payload: z.unknown().optional() });
+const RouterInput = z.object({ action: z.string().min(1).max(64), payload: z.unknown().optional() });
 
 export async function adminRouter(req: Req): Promise<unknown> {
   requireAdmin(req);
   const { action, payload } = parse(RouterInput, req.data);
-  return ACTIONS[action]!({ auth: req.auth, data: payload ?? {} });
+  const handler = Object.hasOwn(ACTIONS, action) ? ACTIONS[action] : undefined;
+  // Usually a web build newer than the deployed functions.
+  if (!handler) throw fail('invalid-argument', 'BAD_REQUEST', `Unknown admin action "${action}". The server may be out of date: redeploy functions.`);
+  return handler({ auth: req.auth, data: payload ?? {} });
 }

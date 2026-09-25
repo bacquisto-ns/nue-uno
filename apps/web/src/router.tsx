@@ -21,6 +21,7 @@ const TableCheckIn = page(() => import('./features/event/TableCheckIn'), 'TableC
 const TvPage = page(() => import('./features/tv/TvPage'), 'TvPage');
 const AdminPage = page(() => import('./features/admin/AdminPage'), 'AdminPage');
 const TableSigns = page(() => import('./features/admin/TableSigns'), 'TableSigns');
+const PrintBracket = page(() => import('./features/admin/PrintBracket'), 'PrintBracket');
 const ProfileForm = lazy(() =>
   import('./features/onboarding/ProfileForm').then((m) => ({ default: m.ProfileForm })),
 );
@@ -51,6 +52,7 @@ export const router = createBrowserRouter([
   { path: '/tv', element: authed(<TvPage />) },
   { path: '/admin', element: admin(<AdminPage />) },
   { path: '/admin/signs', element: admin(<TableSigns />) },
+  { path: '/admin/print', element: admin(<PrintBracket />) },
   { path: '/rules', element: lazyEl(<RulesPage />) },
   { path: '/dev/effects', element: lazyEl(<EffectsGallery />) },
   { path: '*', element: <Navigate to="/" replace /> },

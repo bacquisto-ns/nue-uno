@@ -205,6 +205,8 @@ const TvInput = z.object({
   selectionStep: z.number().int().min(0).max(65).nullish(),
   /** Player Intros: the match whose walk-out cards to show (null = the next table up). */
   introMatchId: Id.nullish(),
+  /** Awards: 0 = title card, k = the k-th award revealed, count + 1 = everything on one screen. */
+  awardsStep: z.number().int().min(0).max(20).nullish(),
 });
 export async function setTvSceneHandler(req: Req) {
   const { uid } = requireAdmin(req);

@@ -44,7 +44,7 @@ export function Logo({ size = 'lg' }: { size?: 'lg' | 'sm' }) {
 export function ErrorText({ children }: { children: ReactNode }) {
   if (!children) return null;
   return (
-    <p role="alert" className="rounded-lg bg-card-red/15 px-3 py-2 text-sm text-red-200">
+    <p role="alert" className="rounded-lg bg-card-red/15 px-3 py-2 text-sm text-red-200 [overflow-wrap:anywhere]">
       {children}
     </p>
   );
