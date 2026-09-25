@@ -48,7 +48,6 @@ export function generateBracket(size: number, finalGames = 3): BracketPlan {
 
   // Sources feeding the current round, best first.
   let feeders: SlotSource[] = Array.from({ length: size }, (_, i) => ({ seed: i + 1 }));
-  let prevMatchIds: string[] = [];
   let round = 1;
 
   // Work out how many non-final rounds there will be so we can name the last one "Semifinal".
@@ -116,10 +115,9 @@ export function generateBracket(size: number, finalGames = 3): BracketPlan {
     });
     rounds.push({ number: round, name: isSemi ? 'Semifinal' : `Round ${round}`, matchIds: ids });
 
-    prevMatchIds = ids;
     feeders = [
-      ...prevMatchIds.map((matchId) => ({ matchId, place: 1 })),
-      ...prevMatchIds.map((matchId) => ({ matchId, place: 2 })),
+      ...ids.map((matchId) => ({ matchId, place: 1 })),
+      ...ids.map((matchId) => ({ matchId, place: 2 })),
     ];
     round++;
   }
