@@ -2,7 +2,10 @@ import confetti from 'canvas-confetti';
 import { collection, limit, orderBy, query, where, type Timestamp } from 'firebase/firestore';
 import { AnimatePresence, m } from 'framer-motion';
 import QRCode from 'qrcode';
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { cueFor } from '../../audio/cues';
+import { play } from '../../audio/sound';
+import { SoundToggle } from '../../audio/SoundToggle';
 import { useActiveBracket, useDirectory, type PlayerCard } from '../../hooks/bracket';
 import { db, useDoc, useQuery } from '../../hooks/firestore';
 import { spring } from '../../motion/tokens';
@@ -10,6 +13,10 @@ import { Avatar } from '../../ui/Avatar';
 import { LiveOverlays } from '../live/LiveOverlays';
 import { BracketBoard } from '../event/BracketBoard';
 import type { TvScene } from '../../api/event';
+import { PlayerIntros, SelectionShow } from './Scenes';
+
+// Crowd reactions pull in the Realtime Database SDK; load them after the board is up.
+const ReactionLayer = lazy(() => import('../event/Reactions').then((m) => ({ default: m.ReactionLayer })));
 
 interface LiveGame {
   matchId: string;
@@ -43,8 +50,19 @@ function describe(e: FeedEvent, dir: Record<string, PlayerCard>, table: number |
 
 function GameFeed({ gameId, onEvents }: { gameId: string; onEvents: (gameId: string, events: FeedEvent[]) => void }) {
   const events = useQuery<FeedEvent>(query(collection(db, `games/${gameId}/events`), orderBy('seq', 'desc'), limit(6)), `tv-events-${gameId}`);
+  // The TV sound set follows the tables live; events already there when the TV loaded stay quiet.
+  const heard = useRef<number | null>(null);
   useEffect(() => {
-    if (events.data) onEvents(gameId, events.data);
+    if (!events.data) return;
+    onEvents(gameId, events.data);
+    const newest = Math.max(0, ...events.data.map((e) => e.seq));
+    if (heard.current !== null) {
+      for (const e of [...events.data].reverse()) {
+        if (e.seq <= heard.current) continue;
+        for (const snd of cueFor(e, true)?.sounds ?? []) play(snd.name, snd.delayMs);
+      }
+    }
+    heard.current = Math.max(heard.current ?? 0, newest);
   }, [events.data, gameId, onEvents]);
   return null;
 }
@@ -66,7 +84,7 @@ function useQr(text: string): string | null {
  * (tv/state) picks the scene. Designed at 1920×1080; text ≥ 32 px for 5 m readability.
  */
 export function TvPage() {
-  const tv = useDoc<{ scene?: TvScene; autoCycle?: boolean }>('tv/state');
+  const tv = useDoc<{ scene?: TvScene; autoCycle?: boolean; selectionStep?: number | null; introMatchId?: string | null }>('tv/state');
   const { bracketId, bracket, matches, season, paused } = useActiveBracket();
   const directory = useDirectory();
   const liveGames = useQuery<LiveGame>(
@@ -99,9 +117,26 @@ export function TvPage() {
     .filter((x): x is { key: string; text: string } => !!x.text)
     .slice(0, 8);
 
+  // Intros default to the next table up: the earliest ready match, else the newest live one.
+  const introMatch =
+    (tv.data?.introMatchId ? matches[tv.data.introMatchId] : undefined) ??
+    Object.values(matches)
+      .filter((mt) => mt.status === 'ready' || mt.status === 'in_progress')
+      .sort((a, b) => (a.status === b.status ? a.round - b.round || a.physicalTable - b.physicalTable : a.status === 'ready' ? -1 : 1))[0] ??
+    null;
+  const reactionTargets = useMemo(
+    () => ['bracket', ...Object.values(matches).filter((mt) => mt.status === 'in_progress').map((mt) => mt.id)],
+    [matches],
+  );
+  const locked = !!bracket && bracket.status !== 'draft';
+
   return (
     <main className="felt-grain fixed inset-0 flex flex-col overflow-hidden p-[3vw] text-[1.1vw]">
       <LiveOverlays />
+      <Suspense fallback={null}>
+        <ReactionLayer targets={reactionTargets} />
+      </Suspense>
+      <SoundToggle className="fixed bottom-2 right-2 z-40 opacity-40 hover:opacity-100" />
       {(liveGames.data ?? []).map((g) => (
         <GameFeed key={g.id} gameId={g.id} onEvents={onEvents} />
       ))}
@@ -135,6 +170,10 @@ export function TvPage() {
               <PickemScene bracketId={bracketId} />
             ) : scene === 'cup' ? (
               <CupScene seasonId={season.id} />
+            ) : scene === 'selection' && locked ? (
+              <SelectionShow step={tv.data?.selectionStep ?? 0} bracket={bracket} matches={matches} directory={directory} />
+            ) : scene === 'intros' && locked ? (
+              <PlayerIntros key={introMatch?.id} match={introMatch} bracket={bracket} directory={directory} seasonId={season.id} />
             ) : bracket && bracket.status !== 'draft' ? (
               <BracketBoard bracket={bracket} matches={matches} directory={directory} size="tv" live={live} />
             ) : (

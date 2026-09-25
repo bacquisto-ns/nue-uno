@@ -201,13 +201,48 @@ const TvInput = z.object({
   scene: z.enum(['bracket', 'intros', 'selection', 'pickem', 'cup', 'featured', 'awards', 'champion']),
   featuredGameId: Id.nullish(),
   autoCycle: z.boolean().optional(),
+  /** Selection Show: 0 = title card, k = k seeds revealed (bottom seed first), size + 1 = finale. */
+  selectionStep: z.number().int().min(0).max(65).nullish(),
+  /** Player Intros: the match whose walk-out cards to show (null = the next table up). */
+  introMatchId: Id.nullish(),
 });
 export async function setTvSceneHandler(req: Req) {
   const { uid } = requireAdmin(req);
   const input = parse(TvInput, req.data);
   await db.doc('tv/state').set({ ...input, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
   await audit(uid, 'setTvScene', 'tv/state', input);
+  if (input.scene === 'selection' && input.selectionStep) await notifySelected(input.selectionStep);
   return { ok: true as const };
+}
+
+/**
+ * Selection Show (PRD E9): the moment a seed is revealed on the TV, that player's phone buzzes
+ * "You're in! Seed 7, Table 2". The doc id is deterministic, so stepping back and forth never
+ * sends it twice.
+ */
+async function notifySelected(step: number) {
+  const season = await getSeason();
+  const bracketId: string | undefined = (await db.doc(`seasons/${season.id}`).get()).get('activeBracketId');
+  if (!bracketId) return;
+  const bracket = (await db.doc(`brackets/${bracketId}`).get()).data();
+  const seeds = (bracket?.seeds ?? []) as { seed: number; uid: string }[];
+  const seed = seeds.length - step + 1;
+  const player = seeds.find((s) => s.seed === seed);
+  if (!player) return;
+  const matches = await db.collection(`brackets/${bracketId}/matches`).where('round', '==', 1).get();
+  const table = matches.docs.find((d) => (d.get('slots') as (string | null)[]).includes(player.uid))?.get('physicalTable');
+  const ref = db.doc(`inbox/${player.uid}/items/selection-${bracketId}`);
+  if ((await ref.get()).exists) return;
+  await ref.set({
+    type: 'selected',
+    title: `You're in! Seed ${seed}${table ? `, Table ${table}` : ''}`,
+    body: "You've made the bracket. Watch the big screen, and head to your table when it's called.",
+    link: '/',
+    takeover: false,
+    createdAt: FieldValue.serverTimestamp(),
+    expiresAt: Timestamp.fromMillis(Date.now() + 60 * 60_000),
+    seenAt: null,
+  });
 }
 
 const SeasonInput = z.object({

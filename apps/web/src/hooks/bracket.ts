@@ -36,6 +36,8 @@ export interface PlayerCard {
   avatarId: string;
   avatarColor: string;
   department: string | null;
+  /** Shown on TV intro cards (PRD A5). */
+  signatureCard?: string | null;
 }
 
 /** Everyone's display card, keyed by uid (≤ 500 users — the whole company fits). */

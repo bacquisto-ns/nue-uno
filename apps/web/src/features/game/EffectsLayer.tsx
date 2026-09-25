@@ -2,6 +2,9 @@ import type { Card, Color } from '@nue-uno/engine';
 import confetti from 'canvas-confetti';
 import { AnimatePresence, m } from 'framer-motion';
 import { useEffect, useState } from 'react';
+import { cueFor } from '../../audio/cues';
+import { buzz } from '../../audio/haptics';
+import { play as playSound } from '../../audio/sound';
 import { EventQueue } from '../../motion/EventQueue';
 import type { EffectsMode } from '../../motion/effectsMode';
 import { limits, spring } from '../../motion/tokens';
@@ -14,6 +17,7 @@ export interface FxEvent {
   targetUid?: string;
   card?: Card;
   color?: Color;
+  count?: number;
 }
 
 type Overlay =
@@ -101,10 +105,15 @@ export function EffectsLayer({
   events,
   mode,
   onShake,
+  myUid,
+  haptics = true,
 }: {
   events: FxEvent[];
   mode: EffectsMode;
   onShake: () => void;
+  /** Whose device this is: haptics only fire for moments that happen to me. */
+  myUid?: string;
+  haptics?: boolean;
 }) {
   const [overlays, setOverlays] = useState<Overlay[]>([]);
   const [queue] = useState(
@@ -120,6 +129,13 @@ export function EffectsLayer({
   useEffect(() => {
     queue.configure({
       play: (e: FxEvent) => {
+        // Sound and haptics follow their own settings, not the effects mode (PRD A6).
+        const cue = cueFor(e);
+        if (cue) {
+          for (const snd of cue.sounds) playSound(snd.name, snd.delayMs);
+          const mine = cue.hapticFor ? cue.hapticFor === myUid : e.uid === myUid || e.type === 'final_lap' || e.type === 'game_finished';
+          if (cue.haptic && mine) buzz(cue.haptic, haptics);
+        }
         if (mode === 'off') return Promise.resolve();
         const plan = choreograph(e);
         if (plan.shake && mode === 'full') onShake();
@@ -146,7 +162,7 @@ export function EffectsLayer({
       },
       fastForward: () => setOverlays([]),
     });
-  }, [mode, onShake, queue]);
+  }, [haptics, mode, myUid, onShake, queue]);
 
   useEffect(() => {
     queue.push(events.filter((e) => e.seq > baseline));

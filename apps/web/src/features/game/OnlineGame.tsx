@@ -1,11 +1,12 @@
 import type { Card, Color } from '@nue-uno/engine';
 import { DEFAULT_SEASON_SETTINGS } from '@nue-uno/shared';
 import { collection, limit, orderBy, query, type Timestamp } from 'firebase/firestore';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { gameApi } from '../../api/game';
 import { useSession } from '../../auth/session';
 import type { TableActions, TableViewModel } from '../../game/view';
 import { db, useDoc, useQuery } from '../../hooks/firestore';
+import { useEffectsMode } from '../../motion/effectsMode';
 import type { FxEvent } from './EffectsLayer';
 import { TableView } from './TableView';
 
@@ -34,6 +35,10 @@ export interface GameDocData {
 }
 
 const GRACE = DEFAULT_SEASON_SETTINGS.timers.graceMs;
+
+// Emotes pull in the Realtime Database SDK, so they load after the table is on screen.
+const EmoteButton = lazy(() => import('./Emotes').then((m) => ({ default: m.EmoteButton })));
+const EmoteBubbles = lazy(() => import('./Emotes').then((m) => ({ default: m.EmoteBubbles })));
 
 /**
  * Server-clock estimate: Firestore `updatedAt` is written by the server, so comparing it with
@@ -72,6 +77,10 @@ export function OnlineGame({ gameId, game, fromCache, pending }: { gameId: strin
   );
   const serverNow = useServerClock(game.updatedAt, pending);
   const online = useOnline();
+  const mode = useEffectsMode();
+  const [emotesMuted, setEmotesMuted] = useState(() => profile?.settings?.emotesMuted ?? false);
+  const seated = useMemo(() => game.seats.map((s) => s.uid), [game.seats]);
+  const amSeated = seated.includes(uid);
 
   const lastPlayedBy = recent.data?.find((e) => e.type === 'card_played')?.uid ?? null;
   const fxEvents = useMemo(() => [...(recent.data ?? [])].sort((a, b) => a.seq - b.seq), [recent.data]);
@@ -162,6 +171,18 @@ export function OnlineGame({ gameId, game, fromCache, pending }: { gameId: strin
       haptics={profile?.settings?.haptics ?? true}
       offline={!online || fromCache}
       events={fxEvents}
+      headerExtras={
+        amSeated && game.status === 'in_progress' ? (
+          <Suspense fallback={null}>
+            <EmoteButton gameId={gameId} uid={uid} muted={emotesMuted} onToggleMute={() => setEmotesMuted((x) => !x)} />
+          </Suspense>
+        ) : null
+      }
+      overlay={
+        <Suspense fallback={null}>
+          <EmoteBubbles gameId={gameId} seated={seated} myUid={uid} muted={emotesMuted} mode={mode} />
+        </Suspense>
+      }
     />
   );
 }

@@ -1,5 +1,5 @@
 import { m } from 'framer-motion';
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { ApiError } from '../../api/call';
 import { eventApi } from '../../api/event';
@@ -10,6 +10,9 @@ import { Avatar } from '../../ui/Avatar';
 import { Button, ErrorText, Logo, Panel } from '../../ui/primitives';
 import { LiveOverlays } from '../live/LiveOverlays';
 import { BracketBoard } from './BracketBoard';
+
+// Reactions pull in the Realtime Database SDK; load them after the hub is on screen.
+const CheerPanel = lazy(() => import('./Reactions').then((m) => ({ default: m.CheerPanel })));
 
 /** PRD E2: the home screen while the season is in event mode. */
 export function EventHub() {
@@ -103,6 +106,12 @@ export function EventHub() {
             <ErrorText>{error}</ErrorText>
           </Panel>
         </m.section>
+      )}
+
+      {bracket && bracket.status !== 'draft' && !bracket.championUid && (
+        <Suspense fallback={null}>
+          <CheerPanel matches={Object.values(matches)} directory={directory} uid={uid} />
+        </Suspense>
       )}
 
       <nav className="grid grid-cols-2 gap-3 sm:grid-cols-4">

@@ -76,7 +76,7 @@ sequenceDiagram
 | Language | TypeScript (strict) everywhere | One language, and the engine is shared |
 | Monorepo | npm workspaces: `apps/web`, `functions`, `packages/engine`, `packages/shared` (zod schemas, constants) | Simple |
 | Frontend | React 18+, Vite, React Router, Tailwind CSS, Zustand (UI state) | Fast to build, small bundle |
-| Motion & effects | **Framer Motion** (springs, layout and FLIP animation, drag), **canvas-confetti** (particles, runs in a worker), **Howler.js** (sound sprites), CSS 3D for card flips | Covers the whole [motion spec](../design/experience-and-motion.md) without a 3D engine. Loaded only when a game opens. |
+| Motion & effects | **Framer Motion** (springs, layout and FLIP animation, drag), **canvas-confetti** (particles, runs in a worker), **Web Audio** (synthesized sounds, no sprite file), CSS 3D for card flips | Covers the whole [motion spec](../design/experience-and-motion.md) without a 3D engine. Loaded only when a game opens. |
 | PWA | `vite-plugin-pwa` (manifest, icons, caching of the app shell and static assets) | Installable, full-screen, fast to reopen |
 | Hosting | Firebase Hosting (SPA rewrite) | Required |
 | Auth | Firebase Auth email link + **custom claims** (`admin`, `active`) | Required. Claims make permission checks in rules cheap. |
@@ -167,7 +167,7 @@ apps/web/src/
     wrapped/       WrappedStory, ShareCard (html-to-image → PNG), HallOfFame
     dev/           EffectsGallery (/dev/effects, dev builds only)
   motion/          tokens.ts, EventQueue.ts, Choreographer.tsx, effects/* (one file per moment), fpsGovernor.ts
-  audio/           sound.ts (Howler sprite, unlock, mute), haptics.ts
+  audio/           sound.ts (Web Audio synth, unlock, per-device toggle), cues.ts, haptics.ts
   hooks/           useGame, useMyHand, useEvents, usePresence, useInbox, useLeaderboard, useBracket, useTvState
   api/             typed callable wrappers (zod from packages/shared)
   ui/              design-system primitives

@@ -191,6 +191,28 @@ describe('live event controls', () => {
   });
 });
 
+describe('selection show', () => {
+  it('buzzes each seed as it is revealed, once, bottom seed first', async () => {
+    const boss = await admin();
+    await field(8);
+    const { bracketId } = await generateBracketHandler(call(boss, { size: 8 }));
+    await lockBracketHandler(call(boss, { bracketId }));
+
+    await setTvSceneHandler(call(boss, { scene: 'selection', selectionStep: 0 }));
+    expect((await db.collection('inbox/p8x/items').where('type', '==', 'selected').get()).size).toBe(0);
+
+    await setTvSceneHandler(call(boss, { scene: 'selection', selectionStep: 1 }));
+    await setTvSceneHandler(call(boss, { scene: 'selection', selectionStep: 1 })); // "Back" then "Next"
+    const items = await db.collection('inbox/p8x/items').where('type', '==', 'selected').get();
+    expect(items.size).toBe(1);
+    const sfA = await match(bracketId, 'SF-A');
+    const table = sfA.slots.includes('p8x') ? sfA.physicalTable : (await match(bracketId, 'SF-B')).physicalTable;
+    expect(items.docs[0]!.get('title')).toBe(`You're in! Seed 8, Table ${table}`);
+    expect((await db.collection('inbox/p1x/items').where('type', '==', 'selected').get()).size).toBe(0);
+    expect((await db.doc('tv/state').get()).data()).toMatchObject({ scene: 'selection', selectionStep: 1 });
+  });
+});
+
 describe('admin router', () => {
   it('dispatches actions to their handlers and still requires the admin claim', async () => {
     const { adminRouter, ADMIN_ACTIONS } = await import('../src/event/adminRouter.js');

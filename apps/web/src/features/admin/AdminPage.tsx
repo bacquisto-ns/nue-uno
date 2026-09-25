@@ -58,7 +58,7 @@ export function AdminPage() {
   const { bracketId, bracket, matches, season, paused } = useActiveBracket();
   const directory = useDirectory();
   const seasonDoc = useDoc<{ status?: SeasonStatus; bracketSize?: number; qualifierStart?: Timestamp; qualifierEnd?: Timestamp }>(`seasons/${season.id}`);
-  const tv = useDoc<{ scene?: TvScene; autoCycle?: boolean }>('tv/state');
+  const tv = useDoc<{ scene?: TvScene; autoCycle?: boolean; selectionStep?: number | null; introMatchId?: string | null }>('tv/state');
   const games = useQuery<LiveGameRow>(query(collection(db, 'games'), where('status', '==', 'in_progress'), limit(50)), 'admin-live-games');
   const banners = useQuery<{ text: string; level: string; active: boolean; expiresAt?: Timestamp }>(
     query(collection(db, 'announcements'), where('active', '==', true), orderBy('createdAt', 'desc'), limit(10)),
@@ -171,6 +171,16 @@ export function AdminPage() {
                   <span className="flex-1 truncate text-sm text-ink-muted">
                     {mt.slots.map((u) => `${name(u)}${u && mt.checkedIn.includes(u) ? '✓' : ''}`).join(' · ')}
                   </span>
+                  {(mt.status === 'ready' || mt.status === 'in_progress') && (
+                    <Button
+                      variant={tv.data?.scene === 'intros' && tv.data?.introMatchId === mt.id ? 'primary' : 'ghost'}
+                      className="py-1 text-sm"
+                      title="Show this table's walk-out cards on the TV"
+                      onClick={() => void run('tv', () => eventApi.setTvScene('intros', { introMatchId: mt.id, autoCycle: false }), `TV → intros, Table ${mt.physicalTable}`)}
+                    >
+                      📺 Intro
+                    </Button>
+                  )}
                   {mt.status === 'ready' && (
                     <Button variant="ghost" className="py-1 text-sm" disabled={!!busy} onClick={() => void run(mt.id, () => eventApi.startMatch(bracketId, mt.id, true), 'Started ▶')}>Force start</Button>
                   )}
@@ -223,14 +233,25 @@ export function AdminPage() {
         <Panel className="space-y-3">
           <h2 className="font-display text-2xl font-extrabold">TV director</h2>
           <div className="flex flex-wrap gap-2">
-            {(['bracket', 'pickem', 'cup', 'champion'] as TvScene[]).map((s) => (
-              <Button key={s} variant={tv.data?.scene === s ? 'primary' : 'ghost'} className="py-1 text-sm capitalize" onClick={() => void run('tv', () => eventApi.setTvScene(s, { autoCycle: tv.data?.autoCycle }), `TV → ${s}`)}>{s}</Button>
+            {(['bracket', 'intros', 'pickem', 'cup', 'champion'] as TvScene[]).map((s) => (
+              <Button key={s} variant={tv.data?.scene === s ? 'primary' : 'ghost'} className="py-1 text-sm capitalize" title={s === 'intros' ? 'Walk-out cards for the next table up' : undefined}
+                onClick={() => void run('tv', () => eventApi.setTvScene(s, { autoCycle: tv.data?.autoCycle, ...(s === 'intros' ? { introMatchId: null } : {}) }), `TV → ${s}`)}>{s}</Button>
             ))}
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={!!tv.data?.autoCycle} onChange={(e) => void run('tv', () => eventApi.setTvScene(tv.data?.scene ?? 'bracket', { autoCycle: e.target.checked }), 'Saved')} />
               Auto-cycle between rounds
             </label>
           </div>
+          {bracket && bracket.status !== 'draft' && (
+            <SelectionShowControls
+              scene={tv.data?.scene}
+              step={tv.data?.selectionStep ?? 0}
+              size={bracket.seeds.length}
+              nameOfSeed={(seed) => bracket.seeds.find((s) => s.seed === seed)?.displayName ?? '—'}
+              onStep={(step) => void run('tv', () => eventApi.setTvScene('selection', { selectionStep: step, autoCycle: false }), step === 0 ? 'Selection Show on the TV' : `Step ${step}`)}
+              busy={!!busy}
+            />
+          )}
           <h2 className="font-display pt-2 text-2xl font-extrabold">Season</h2>
           <p className="text-sm text-ink-muted">
             {season.id} · status <strong>{seasonDoc.data?.status ?? 'setup'}</strong>
@@ -254,5 +275,31 @@ export function AdminPage() {
         ) : '—'}
       </div>
     </main>
+  );
+}
+
+/**
+ * Selection Show remote (PRD E9, run-of-show T+0). Each Next reveals one seed, bottom seed first,
+ * and buzzes that player's phone; the step after seed #1 assembles the full bracket.
+ */
+function SelectionShowControls({ scene, step, size, nameOfSeed, onStep, busy }: { scene?: TvScene; step: number; size: number; nameOfSeed: (seed: number) => string; onStep: (step: number) => void; busy: boolean }) {
+  const live = scene === 'selection';
+  const label = !live ? 'Not on the TV' : step === 0 ? 'Title card' : step > size ? 'Finale — bracket assembled 🎉' : `Seed #${size - step + 1}: ${nameOfSeed(size - step + 1)}`;
+  const next = step >= 1 && step < size ? `Reveal seed #${size - step}` : step === 0 ? `Reveal seed #${size}` : 'Show the bracket';
+  return (
+    <div className="space-y-2 rounded-xl bg-white/5 p-3">
+      <p className="text-sm font-semibold">🎬 Selection Show · <span className="text-ink-muted">{label}</span></p>
+      <div className="flex flex-wrap gap-2">
+        {!live ? (
+          <Button className="py-1 text-sm" disabled={busy} onClick={() => onStep(0)}>Start on the TV</Button>
+        ) : (
+          <>
+            <Button variant="ghost" className="py-1 text-sm" disabled={busy || step === 0} onClick={() => onStep(step - 1)}>◀ Back</Button>
+            <Button className="py-1 text-sm" disabled={busy || step > size} onClick={() => onStep(step + 1)}>{next} ▶</Button>
+            <Button variant="ghost" className="py-1 text-sm" disabled={busy} onClick={() => onStep(0)}>Restart</Button>
+          </>
+        )}
+      </div>
+    </div>
   );
 }

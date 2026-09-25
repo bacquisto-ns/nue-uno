@@ -38,7 +38,10 @@ export const eventApi = {
   broadcast: (text: string, level: 'info' | 'urgent', ttlMinutes: number) =>
     adminCall<Ok & { id: string }>('broadcast', { text, level, ttlMinutes }),
   clearBroadcast: (id: string) => adminCall<Ok>('clearBroadcast', { id }),
-  setTvScene: (scene: TvScene, opts: { featuredGameId?: string | null; autoCycle?: boolean } = {}) =>
+  setTvScene: (
+    scene: TvScene,
+    opts: { featuredGameId?: string | null; autoCycle?: boolean; selectionStep?: number | null; introMatchId?: string | null } = {},
+  ) =>
     adminCall<Ok>('setTvScene', { scene, ...opts }),
   setSeason: (input: { status?: SeasonStatus; qualifierStartMs?: number; qualifierEndMs?: number; bracketSize?: number }) =>
     adminCall<Ok>('setSeason', input),

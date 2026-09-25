@@ -294,7 +294,7 @@ WCAG 2.1 AA contrast. Colorblind-safe symbols on cards and color indicators (G9)
 | Adaptive quality | If the average frame rate is under 45 for 2 seconds, drop to Reduced effects for the session and show a small notice |
 | Initial load | **First load (sign-in) ≤ 150 KB** gzipped JavaScript. **Lobby total ≤ 325 KB** gzipped, including Firestore, which loads only after sign-in. The game, TV, effects, and sounds load when needed. Largest contentful paint under 2.5s on 4G. *(Revised 2026-09-23: the Firestore SDK alone is ~162 KB gz in Firebase 12.)* |
 | Animation technique | Animate only `transform` and `opacity`. Confetti and particles are capped at 150 on phones and 600 on the TV. |
-| Audio | Sounds combined into one sprite file, ≤ 400 KB, loaded only after sound is turned on |
+| Audio | Synthesized in the browser with Web Audio: no audio files to download *(revised 2026-09-25; was one sprite file ≤ 400 KB)* |
 | Effect timing | Everyday effects ≤ 400ms. Signature effects ≤ 1200ms. Effects never block input, and if events pile up, the queue skips ahead to the latest state (see the motion spec). |
 
 ## 12. Launch and comms plan
