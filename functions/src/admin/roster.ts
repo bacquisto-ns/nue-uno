@@ -1,4 +1,4 @@
-import { ApproveUserInput, ImportRosterInput } from '@nue-uno/shared';
+import { AdminUpdateUserInput, ApproveUserInput, ImportRosterInput } from '@nue-uno/shared';
 import { FieldValue } from 'firebase-admin/firestore';
 import type { CallableRequest } from 'firebase-functions/v2/https';
 import { adminAuth, db } from '../admin.js';
@@ -72,5 +72,61 @@ export async function approveUserHandler(req: Req): Promise<{ ok: true }> {
   }
   await activate(uid);
   await audit(actor, 'approveUser', `users/${uid}`, { status: 'active' });
+  return { ok: true };
+}
+
+/**
+ * Moderation (api.md `adminUpdateUser`). Disabling blocks sign-in, removes the `active` claim and
+ * revokes refresh tokens, so the person is signed out everywhere within the hour (sooner on their
+ * next token refresh). Re-enabling restores sign-in and the `active` claim. Renames keep the
+ * displayNames index unique. This is the main mitigation for password accounts (ADR-3).
+ */
+export async function adminUpdateUserHandler(req: Req): Promise<{ ok: true }> {
+  const { uid: actor } = requireAdmin(req);
+  const input = parse(AdminUpdateUserInput, req.data);
+  const { uid, reason } = input;
+  if (input.status === 'disabled' && uid === actor) {
+    throw fail('failed-precondition', 'BAD_REQUEST', "You can't disable your own account.");
+  }
+  const userRef = db.doc(`users/${uid}`);
+
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(userRef);
+    if (!snap.exists) throw fail('not-found', 'BAD_REQUEST', 'No such user.');
+    const patch: Record<string, unknown> = { updatedAt: FieldValue.serverTimestamp() };
+    if (input.displayName !== undefined) {
+      const key = input.displayName.toLowerCase();
+      const nameRef = db.doc(`displayNames/${key}`);
+      const taken = await tx.get(nameRef);
+      if (taken.exists && taken.get('uid') !== uid) {
+        throw fail('failed-precondition', 'NAME_TAKEN', 'That display name is taken.');
+      }
+      const oldKey = String(snap.get('displayName') ?? '').toLowerCase();
+      if (oldKey && oldKey !== key) tx.delete(db.doc(`displayNames/${oldKey}`));
+      tx.set(nameRef, { uid });
+      patch.displayName = input.displayName;
+    }
+    if (input.department !== undefined) patch.department = input.department;
+    if (input.attendingEvent !== undefined) patch.attendingEvent = input.attendingEvent;
+    if (input.status !== undefined) patch.status = input.status;
+    tx.set(userRef, patch, { merge: true });
+  });
+
+  if (input.status) {
+    const user = await adminAuth.getUser(uid);
+    const claims = { ...user.customClaims };
+    if (input.status === 'disabled') {
+      delete claims.active;
+      await adminAuth.updateUser(uid, { disabled: true });
+      await adminAuth.setCustomUserClaims(uid, claims);
+      await adminAuth.revokeRefreshTokens(uid);
+    } else {
+      await adminAuth.updateUser(uid, { disabled: false });
+      await adminAuth.setCustomUserClaims(uid, { ...claims, active: true });
+    }
+  }
+
+  const { uid: _uid, reason: _reason, ...after } = input;
+  await audit(actor, 'adminUpdateUser', `users/${uid}`, after, reason);
   return { ok: true };
 }

@@ -1,6 +1,6 @@
 import type { CallableRequest } from 'firebase-functions/v2/https';
 import { z } from 'zod';
-import { approveUserHandler, importRosterHandler } from '../admin/roster.js';
+import { adminUpdateUserHandler, approveUserHandler, importRosterHandler } from '../admin/roster.js';
 import { fail } from '../errors.js';
 import { parse, requireAdmin } from '../guards.js';
 import {
@@ -32,6 +32,7 @@ type Handler = (req: Req) => Promise<unknown>;
 const ACTIONS: Record<string, Handler> = {
   importRoster: importRosterHandler,
   approveUser: approveUserHandler,
+  adminUpdateUser: adminUpdateUserHandler,
   generateBracket: generateBracketHandler,
   editBracketSeeds: editBracketSeedsHandler,
   setPhysicalTables: setPhysicalTablesHandler,

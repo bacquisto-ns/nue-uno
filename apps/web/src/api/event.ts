@@ -47,6 +47,8 @@ export const eventApi = {
   setSeason: (input: { status?: SeasonStatus; qualifierStartMs?: number; qualifierEndMs?: number; bracketSize?: number }) =>
     adminCall<Ok>('setSeason', input),
   approveUser: (uid: string) => adminCall<Ok>('approveUser', { uid }),
+  adminUpdateUser: (input: { uid: string; reason: string; displayName?: string; department?: string | null; attendingEvent?: 'yes' | 'no' | 'maybe'; status?: 'active' | 'disabled' }) =>
+    adminCall<Ok>('adminUpdateUser', input),
   computeAwards: () => adminCall<Ok & { count: number }>('computeAwards'),
   adminStats: () => adminCall<SeasonStats>('adminStats'),
   importRoster: (rows: { email: string; name: string; department: string }[], replace = false) =>
