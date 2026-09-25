@@ -22,7 +22,8 @@
     "format": "prettier --write .",
     "bot": "esbuild scripts/emulator-bot.ts --bundle --platform=node --format=esm --target=node22 --outfile=node_modules/.cache/nue-uno/emulator-bot.mjs --log-level=warning && node node_modules/.cache/nue-uno/emulator-bot.mjs",
     "deploy:dev": "npm run build -w @nue-uno/functions && npm run build -w @nue-uno/web -- --mode dev && firebase deploy --project dev --only firestore:rules,firestore:indexes,database,functions,hosting",
-    "deploy:prod": "npm run build -w @nue-uno/functions && npm run build -w @nue-uno/web -- --mode prod && firebase deploy --project prod --only firestore:rules,firestore:indexes,database,functions,hosting"
+    "deploy:prod": "npm run build -w @nue-uno/functions && npm run build -w @nue-uno/web -- --mode prod && firebase deploy --project prod --only firestore:rules,firestore:indexes,database,functions,hosting",
+    "seed:event": "esbuild scripts/seed-event.ts --bundle --platform=node --format=esm --target=node22 --packages=external --outfile=node_modules/.cache/nue-uno/seed-event.mjs --log-level=warning && node node_modules/.cache/nue-uno/seed-event.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -205,6 +205,7 @@ export function Lobby() {
 
       <footer className="flex flex-wrap gap-3 pb-6 text-sm text-ink-muted">
         <Link to="/rules" className="hover:text-ink">📖 Rules</Link>
+        {claims.admin && <Link to="/admin" className="hover:text-ink">🛰️ Mission Control</Link>}
         {(import.meta.env.DEV || claims.admin) && <Link to="/dev/effects" className="hover:text-ink">✨ Effects gallery</Link>}
         <button onClick={() => void signOutEverywhere()} className="hover:text-ink">Sign out</button>
       </footer>
