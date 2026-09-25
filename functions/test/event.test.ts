@@ -190,3 +190,16 @@ describe('live event controls', () => {
     expect((await db.collection('auditLog').get()).size).toBe(3);
   });
 });
+
+describe('admin router', () => {
+  it('dispatches actions to their handlers and still requires the admin claim', async () => {
+    const { adminRouter, ADMIN_ACTIONS } = await import('../src/event/adminRouter.js');
+    const boss = await admin();
+    const ana = await makePlayer('Ana');
+    expect(ADMIN_ACTIONS).toContain('generateBracket');
+    expect(await reasonOf(adminRouter(call(ana, { action: 'setTvScene', payload: { scene: 'cup' } })))).toBe('NOT_ADMIN');
+    expect(await reasonOf(adminRouter(call(boss, { action: 'dropDatabase', payload: {} })))).toBe('BAD_REQUEST');
+    expect(await adminRouter(call(boss, { action: 'setTvScene', payload: { scene: 'cup' } }))).toEqual({ ok: true });
+    expect((await db.doc('tv/state').get()).get('scene')).toBe('cup');
+  });
+});
