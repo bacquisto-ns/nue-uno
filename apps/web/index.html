@@ -20,6 +20,21 @@
       rel="stylesheet"
     />
     <title>Nue Uno</title>
+    <!-- The dev site is a test copy with its own accounts and games. Send everyone to the real app;
+         add ?stay=1 to a dev link to keep using dev (remembered for the tab session). -->
+    <script>
+      (function () {
+        try {
+          var h = location.hostname;
+          if (h !== 'nue-uno-dev.web.app' && h !== 'nue-uno-dev.firebaseapp.com') return;
+          if (new URLSearchParams(location.search).get('stay') === '1') sessionStorage.setItem('nue-uno-stay-dev', '1');
+          if (sessionStorage.getItem('nue-uno-stay-dev') === '1') return;
+          location.replace('https://nue-uno-prod.web.app/');
+        } catch (e) {
+          location.replace('https://nue-uno-prod.web.app/');
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
