@@ -190,6 +190,9 @@ export function AdminPage() {
                   {mt.status === 'ready' && (
                     <Button variant="ghost" className="py-1 text-sm" disabled={!!busy} onClick={() => void run(mt.id, () => eventApi.startMatch(bracketId, mt.id, true), 'Started ▶')}>Force start</Button>
                   )}
+                  {mt.status === 'ready' && mt.gameIds.length === 0 && mt.checkedIn.length >= 2 && mt.checkedIn.length < mt.slots.length && (
+                    <Button variant="ghost" className="py-1 text-sm" disabled={!!busy} title="Deal the game now with the checked-in players; everyone else is forfeited (last place)" onClick={() => void run(mt.id, () => eventApi.startMatch(bracketId, mt.id, false, true), `Started with ${mt.checkedIn.length} ▶`)}>Start with {mt.checkedIn.length} here</Button>
+                  )}
                   {mt.status === 'in_progress' && (
                     <Button variant="ghost" className="py-1 text-sm" disabled={!!busy || reason.trim().length < 3} onClick={() => void run(mt.id, () => eventApi.restartMatchGame(bracketId, mt.id, reason), 'Restarted ↻')}>Restart</Button>
                   )}

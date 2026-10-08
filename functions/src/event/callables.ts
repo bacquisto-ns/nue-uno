@@ -88,12 +88,12 @@ export async function lockBracketHandler(req: Req) {
   return { ok: true as const };
 }
 
-const StartMatchInput = z.object({ bracketId: Id, matchId: Id, force: z.boolean().optional() });
+const StartMatchInput = z.object({ bracketId: Id, matchId: Id, force: z.boolean().optional(), skipAbsent: z.boolean().optional() });
 export async function startMatchHandler(req: Req) {
   const { uid } = requireAdmin(req);
-  const { bracketId, matchId, force } = parse(StartMatchInput, req.data);
-  const gameId = await startMatchGame(bracketId, matchId, { force });
-  await audit(uid, 'startMatch', `brackets/${bracketId}/matches/${matchId}`, { gameId, force: !!force });
+  const { bracketId, matchId, force, skipAbsent } = parse(StartMatchInput, req.data);
+  const gameId = await startMatchGame(bracketId, matchId, { force, skipAbsent });
+  await audit(uid, 'startMatch', `brackets/${bracketId}/matches/${matchId}`, { gameId, force: !!force, skipAbsent: !!skipAbsent });
   return { ok: true as const, gameId };
 }
 

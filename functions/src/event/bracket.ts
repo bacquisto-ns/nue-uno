@@ -186,7 +186,7 @@ async function seatsFor(uids: string[]): Promise<Seat[]> {
 }
 
 /** Create and deal the next game for a match with its fixed seats (no lobby). */
-export async function startMatchGame(bracketId: string, matchId: string, opts: { force?: boolean } = {}): Promise<string> {
+export async function startMatchGame(bracketId: string, matchId: string, opts: { force?: boolean; skipAbsent?: boolean } = {}): Promise<string> {
   const season = await getSeason();
   const matchRef = matchesCol(bracketId).doc(matchId);
   const pre = (await matchRef.get()).data() as MatchDoc | undefined;
@@ -203,7 +203,12 @@ export async function startMatchGame(bracketId: string, matchId: string, opts: {
       if (cur.get('status') === 'in_progress') throw fail('failed-precondition', 'BAD_REQUEST', 'A game is already running at this table.');
     }
     if (m.slots.some((s) => !s)) throw fail('failed-precondition', 'PLAYERS_NOT_PRESENT', 'Not every seat is filled yet.');
-    if (!opts.force && m.gameIds.length === 0 && !uids.every((u) => m.checkedIn.includes(u))) {
+    // skipAbsent: start with only the checked-in players; the rest are forfeited (last place).
+    const absent = opts.skipAbsent && m.gameIds.length === 0 ? uids.filter((u) => !m.checkedIn.includes(u)) : [];
+    if (opts.skipAbsent && m.gameIds.length === 0 && uids.length - absent.length < 2) {
+      throw fail('failed-precondition', 'PLAYERS_NOT_PRESENT', 'At least 2 players must be checked in to start without the others.');
+    }
+    if (!opts.force && !opts.skipAbsent && m.gameIds.length === 0 && !uids.every((u) => m.checkedIn.includes(u))) {
       throw fail('failed-precondition', 'PLAYERS_NOT_PRESENT', 'Waiting for everyone to check in.');
     }
     const meta = {
@@ -234,9 +239,9 @@ export async function startMatchGame(bracketId: string, matchId: string, opts: {
     };
     tx.set(gameRef, meta);
     const plan = await planStart(tx, meta as unknown as GameDoc, uids, season);
-    startInTx(tx, { ref: gameRef, game: meta as unknown as GameDoc }, uids, plan, season);
+    startInTx(tx, { ref: gameRef, game: meta as unknown as GameDoc }, uids, plan, season, absent);
     tx.set(matchRef, { status: 'in_progress', currentGameId: gameRef.id, gameIds: FieldValue.arrayUnion(gameRef.id) }, { merge: true });
-    for (const u of uids) tx.set(db.doc(`users/${u}`), { activeGameId: gameRef.id }, { merge: true });
+    for (const u of uids.filter((x) => !absent.includes(x))) tx.set(db.doc(`users/${u}`), { activeGameId: gameRef.id }, { merge: true });
   });
   await bracketRef(bracketId).set({ status: 'in_progress' }, { merge: true });
   return gameRef.id;

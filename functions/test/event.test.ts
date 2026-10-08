@@ -14,10 +14,11 @@ import {
   resumeAllHandler,
   setSeasonHandler,
   setTvSceneHandler,
+  startMatchHandler,
   submitPicksHandler,
 } from '../src/event/callables.js';
 import { drawCardHandler, leaveGameHandler } from '../src/game/moves.js';
-import { call, makePlayer, makeUser, readGame, reasonOf, resetEmulators, type Ctx } from './helpers.js';
+import { call, makePlayer, makeUser, readGame, readState, reasonOf, resetEmulators, type Ctx } from './helpers.js';
 
 const SEASON = 'connections-2026';
 beforeEach(resetEmulators);
@@ -56,6 +57,40 @@ async function playOut(gameId: string, order: string[], players: Record<string, 
 }
 
 const match = async (bracketId: string, id: string) => (await db.doc(`brackets/${bracketId}/matches/${id}`).get()).data()!;
+
+describe('start without all players', () => {
+  it('deals with the checked-in players and forfeits the absent ones to last place', async () => {
+    const boss = await admin();
+    const p = await field(8);
+    const { bracketId } = await generateBracketHandler(call(boss, { size: 8 }));
+    await lockBracketHandler(call(boss, { bracketId }));
+    const slots = (await match(bracketId, 'SF-A')).slots as string[];
+    expect(slots).toHaveLength(4);
+    const [a, b, c, absent] = slots as [string, string, string, string];
+
+    // One player here: neither a normal start nor a start-without-the-others is allowed.
+    await checkInMatchHandler(call(p[a]!, { bracketId, matchId: 'SF-A' }));
+    expect(await reasonOf(startMatchHandler(call(boss, { bracketId, matchId: 'SF-A' })))).toBe('PLAYERS_NOT_PRESENT');
+    expect(await reasonOf(startMatchHandler(call(boss, { bracketId, matchId: 'SF-A', skipAbsent: true })))).toBe('PLAYERS_NOT_PRESENT');
+
+    // Three here: start without the fourth.
+    await checkInMatchHandler(call(p[b]!, { bracketId, matchId: 'SF-A' }));
+    await checkInMatchHandler(call(p[c]!, { bracketId, matchId: 'SF-A' }));
+    const { gameId } = await startMatchHandler(call(boss, { bracketId, matchId: 'SF-A', skipAbsent: true }));
+    const game = await readGame(gameId);
+    expect(game).toMatchObject({ mode: 'bracket', status: 'in_progress', matchId: 'SF-A' });
+    expect(game.seatUids).toEqual(slots);
+    expect((await readState(gameId)).forfeited).toEqual([absent]);
+    expect((await db.doc(`users/${absent}`).get()).get('activeGameId') ?? null).toBeNull();
+    expect((await db.doc(`users/${a}`).get()).get('activeGameId')).toBe(gameId);
+
+    // Play it out: the absent player finishes last.
+    await playOut(gameId, [a, b, c], p);
+    const result = (await db.doc(`results/${gameId}`).get()).data()!;
+    expect(result.placements.find((x: { uid: string }) => x.uid === absent)).toMatchObject({ place: 4, forfeited: true });
+    expect((await match(bracketId, 'SF-A')).status).toBe('complete');
+  });
+});
 
 describe('bracket lifecycle', () => {
   it('generates from eligible attendees, locks, checks in, plays, advances and crowns a champion', async () => {
