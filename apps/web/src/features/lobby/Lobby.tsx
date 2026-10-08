@@ -1,7 +1,6 @@
-import { DEFAULT_SEASON_SETTINGS, nextUnoHour } from '@nue-uno/shared';
 import { collection, limit, orderBy, query, where } from 'firebase/firestore';
 import { m } from 'framer-motion';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { ApiError } from '../../api/call';
 import { gameApi } from '../../api/game';
@@ -25,44 +24,6 @@ type OpenTable = GameDocData & {
   requestedMode: 'casual' | 'ranked';
   bracketId?: string | null;
 };
-
-function useNow(intervalMs: number): number {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const t = window.setInterval(() => setNow(Date.now()), intervalMs);
-    return () => window.clearInterval(t);
-  }, [intervalMs]);
-  return now;
-}
-
-function fmtDuration(ms: number): string {
-  const mins = Math.max(0, Math.round(ms / 60_000));
-  if (mins < 60) return `${mins} min`;
-  const h = Math.floor(mins / 60);
-  return h < 24 ? `${h} h ${mins % 60} min` : `${Math.floor(h / 24)} d ${h % 24} h`;
-}
-
-/** PRD L5: countdown to the next Uno Hour, glowing while one is live. Shown in local time (Q6). */
-function UnoHourCard() {
-  const now = useNow(30_000);
-  const slot = nextUnoHour(now, DEFAULT_SEASON_SETTINGS.unoHours, DEFAULT_SEASON_SETTINGS.timezone);
-  if (!slot) return null;
-  const time = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-  return (
-    <div
-      className={`flex items-center gap-3 rounded-2xl px-4 py-3 ring-1 ${slot.live ? 'bg-gold/15 ring-gold/60 shadow-[0_0_30px_#f5c54244]' : 'bg-white/5 ring-white/10'}`}
-      aria-live="polite"
-    >
-      <span className="text-2xl" aria-hidden>{slot.live ? '🔥' : '⏰'}</span>
-      <div>
-        <p className="font-semibold">{slot.live ? 'Uno Hour is live!' : `Next Uno Hour in ${fmtDuration(slot.startMs - now)}`}</p>
-        <p className="text-xs text-ink-muted">
-          {time(slot.startMs)}–{time(slot.endMs)} your time{slot.live ? ` · ends in ${fmtDuration(slot.endMs - now)}` : ''}
-        </p>
-      </div>
-    </div>
-  );
-}
 
 export function Lobby() {
   const navigate = useNavigate();
@@ -112,7 +73,6 @@ export function Lobby() {
         </Link>
       )}
 
-      <UnoHourCard />
       {user && (
         <Suspense fallback={<div className="h-[54px] rounded-2xl bg-white/5" />}>
           <PresenceBeacon activity="lobby" />
