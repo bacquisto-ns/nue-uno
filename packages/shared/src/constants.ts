@@ -69,7 +69,7 @@ export const DEFAULT_SEASON_SETTINGS = {
   timers: { casualMs: 30_000, rankedMs: 30_000, bracketMs: 20_000, awayMs: 5_000, graceMs: 1_500 },
   finalLap: { qualifierMin: 20, bracketMin: 12 },
   scoring: {
-    pointsByTableSize: { '3': [8, 4, 1], '4': [10, 6, 3, 1] } as Record<string, number[]>,
+    pointsByTableSize: { '2': [10, 0], '3': [8, 4, 1], '4': [10, 6, 3, 1] } as Record<string, number[]>,
     bestN: 10,
     minGames: 3,
     maxSameGroupPerDay: 2,

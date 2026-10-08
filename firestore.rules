@@ -24,6 +24,7 @@ service cloud.firestore {
     match /seasons/{id}                  { allow read: if isPlayer(); }
     match /results/{id}                  { allow read: if isPlayer(); }
     match /leaderboard/{s}/entries/{uid} { allow read: if isPlayer(); }
+    match /leaderboard/{s}/allGames/{uid} { allow read: if isPlayer(); }
     match /departmentCup/{s}/entries/{d} { allow read: if isPlayer(); }
     match /passport/{uid}                { allow read: if isPlayer(); }
     match /playerStats/{id}              { allow read: if isPlayer(); }

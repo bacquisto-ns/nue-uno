@@ -21,6 +21,7 @@ import {
   playCardHandler,
 } from '../src/game/moves.js';
 import { saveProfileHandler } from '../src/profile.js';
+import { clearSeasonCache } from '../src/season.js';
 import { startOfDayMs } from '@nue-uno/shared';
 import {
   call,
@@ -131,13 +132,30 @@ describe('lobby', () => {
     expect(game.lastEventSeq).toBe(events.size);
   });
 
-  it('ranked needs 3+ players inside the qualifier window', async () => {
+  it('every game is ranked inside the qualifier window, whatever the size or requested mode', async () => {
     const trio = [await makePlayer('Ana'), await makePlayer('Ben'), await makePlayer('Cal')];
     expect((await startedGame(trio.slice(0, 3), 'ranked')).mode).toBe('casual'); // window closed
     await resetEmulators();
     await openQualifiers();
     const again = [await makePlayer('Ana'), await makePlayer('Ben'), await makePlayer('Cal')];
-    expect((await startedGame(again.slice(0, 2), 'ranked')).mode).toBe('casual'); // only 2
+    expect((await startedGame(again.slice(0, 2), 'ranked')).mode).toBe('ranked'); // 2 players count
+    await resetEmulators();
+    await openQualifiers();
+    const unchecked = [await makePlayer('Ana'), await makePlayer('Ben')];
+    expect((await startedGame(unchecked, 'casual')).mode).toBe('ranked'); // requested mode ignored
+  });
+
+  it('a disabled same-group cap (maxSameGroupPerDay: 0) keeps repeat tables ranked', async () => {
+    await openQualifiers();
+    await db.doc('seasons/connections-2026').set({ scoring: { maxSameGroupPerDay: 0 } }, { merge: true });
+    clearSeasonCache();
+    const trio = [await makePlayer('Ana'), await makePlayer('Ben'), await makePlayer('Cal')];
+    for (const id of ['r1', 'r2', 'r3']) {
+      await db.doc(`results/${id}`).set({ seasonId: 'connections-2026', mode: 'ranked', groupKey: 'ana_ben_cal', finishedAt: new Date(), voided: false });
+    }
+    const gameId = await tableWith(trio, 'ranked');
+    expect((await readGame(gameId)).collusionWarning).toBeFalsy();
+    expect((await startGameHandler(call(trio[0]!, { gameId }))).mode).toBe('ranked');
   });
 
   it('ranked with 3+ in the window; anti-collusion downgrades the 3rd same-group game today', async () => {

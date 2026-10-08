@@ -89,7 +89,7 @@ Realtime Database
 | `unoHours` | array | `[{ days: [1,2,3,4,5], start: "12:00", end: "12:45" }, { days: [1..5], start: "16:00", end: "16:30" }]` |
 | `timers` | map | `{ casualMs: 30000, rankedMs: 30000, bracketMs: 20000, awayMs: 5000, graceMs: 1500 }` |
 | `finalLap` | map | `{ qualifierMin: 20, bracketMin: 12 }` |
-| `scoring` | map | `{ pointsByTableSize: { "3": [8,4,1], "4": [10,6,3,1] }, bestN: 10, minGames: 3, maxSameGroupPerDay: 2, minTurnsForPoints: 12 }` |
+| `scoring` | map | `{ pointsByTableSize: { "2": [10,0], "3": [8,4,1], "4": [10,6,3,1] }, bestN: 10, minGames: 3, maxSameGroupPerDay: 2, minTurnsForPoints: 12 }` |
 | `cup` | map | `{ topN: 3, participationBonus: 2, participationMinGames: 3 }` |
 | `pickem` | map | `{ tableWinnerPts: 3, championPts: 10 }` |
 | `bracketSize`, `finalGames` | number | 16, 3 |
@@ -297,7 +297,7 @@ Clients write `at` as `ServerValue.TIMESTAMP` (it resolves to `now`), so they ca
 | `games` | `status ASC, requestedMode ASC, createdAt ASC` | Quick Match, forming nudges |
 | `games` | `bracketId ASC, status ASC` | TV and Mission Control |
 | `results` | `playerUids ARRAY_CONTAINS, finishedAt DESC` | History, recomputing the leaderboard and Passport |
-| `results` | `seasonId ASC, groupKey ASC, finishedAt DESC` | Anti-collusion |
+| `results` | `seasonId ASC, groupKey ASC, finishedAt ASC` | Anti-collusion |
 | `leaderboard/{s}/entries` | `score DESC, winRate DESC, avgPlace ASC` | Leaderboard |
 | `leaderboard/{s}/entries` | `department ASC, score DESC` | Department Cup recompute |
 | `departmentCup/{s}/entries` | `cupScore DESC` | Cup board |

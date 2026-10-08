@@ -1,4 +1,5 @@
 import {
+  allGamesEntryFor,
   compareEntries,
   cupEntryFor,
   DEFAULT_DEPARTMENTS,
@@ -61,6 +62,23 @@ export async function recomputePlayer(uid: string, seasonId: string): Promise<vo
       scoreReachedAt: entry.scoreReachedAtMs ? Timestamp.fromMillis(entry.scoreReachedAtMs) : null,
       updatedAt: FieldValue.serverTimestamp(),
     });
+  }
+
+  // All-games board: every finished, non-voided game counts (any mode, size or length).
+  const allGames = allGamesEntryFor(uid, results);
+  const allGamesRef = db.doc(`leaderboard/${seasonId}/allGames/${uid}`);
+  if (allGames.games > 0) {
+    await allGamesRef.set({
+      displayName: user.displayName ?? 'Player',
+      avatarId: user.avatarId ?? 'fox',
+      avatarColor: user.avatarColor ?? 'teal',
+      department: user.department ?? null,
+      ...allGames,
+      lastPlayedAt: allGames.lastPlayedAtMs ? Timestamp.fromMillis(allGames.lastPlayedAtMs) : null,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  } else if ((await allGamesRef.get()).exists) {
+    await allGamesRef.delete(); // every game voided
   }
 
   const passport = passportFor(uid, user.department ?? null, results, departments, user.tutorialDone ? ['tutorial'] : []);
@@ -146,7 +164,6 @@ export async function onUserWrittenHandler(uid: string, after: DocumentData | un
   const season = await getSeason();
   const ref = db.doc(`leaderboard/${season.id}/entries/${uid}`);
   const snap = await ref.get();
-  if (!snap.exists) return;
   const next = {
     displayName: after.displayName,
     avatarId: after.avatarId,
@@ -154,6 +171,16 @@ export async function onUserWrittenHandler(uid: string, after: DocumentData | un
     department: after.department ?? null,
     attendingEvent: after.attendingEvent ?? 'maybe',
   };
-  const cur = snap.data()!;
-  if (Object.entries(next).some(([k, v]) => cur[k] !== v)) await ref.set(next, { merge: true });
+  if (snap.exists) {
+    const cur = snap.data()!;
+    if (Object.entries(next).some(([k, v]) => cur[k] !== v)) await ref.set(next, { merge: true });
+  }
+
+  const { attendingEvent: _attending, ...profile } = next;
+  const allRef = db.doc(`leaderboard/${season.id}/allGames/${uid}`);
+  const allSnap = await allRef.get();
+  if (allSnap.exists) {
+    const cur = allSnap.data()!;
+    if (Object.entries(profile).some(([k, v]) => cur[k] !== v)) await allRef.set(profile, { merge: true });
+  }
 }

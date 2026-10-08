@@ -92,6 +92,19 @@ describe('derived data triggers', () => {
     await onResultWrittenHandler(undefined, casual);
     expect((await db.doc(`leaderboard/${SEASON}/entries/dee`).get()).exists).toBe(false);
     expect((await db.doc('passport/dee').get()).get('distinctCoworkers')).toBe(1);
+    // …but every finished game lands on the all-games board, and a fully voided player drops off it.
+    expect((await db.doc(`leaderboard/${SEASON}/allGames/dee`).get()).data()).toMatchObject({ games: 1, wins: 1, displayName: 'Dee' });
+    expect((await db.doc(`leaderboard/${SEASON}/allGames/cal`).get()).exists).toBe(false);
+  });
+
+  it('a casual 2-player game appears on the all-games board', async () => {
+    await makePlayer('Ana');
+    await makePlayer('Ben');
+    const { doc } = await writeResult(['ana', 'ben'], { mode: 'casual', turns: 3 });
+    await onResultWrittenHandler(undefined, doc);
+    expect((await db.doc(`leaderboard/${SEASON}/allGames/ana`).get()).data()).toMatchObject({ games: 1, wins: 1, winRate: 1 });
+    expect((await db.doc(`leaderboard/${SEASON}/allGames/ben`).get()).data()).toMatchObject({ games: 1, wins: 0, avgPlace: 2 });
+    expect((await db.doc(`leaderboard/${SEASON}/entries/ana`).get()).exists).toBe(false);
   });
 
   it('recomputes the Department Cup and tracks the leader', async () => {

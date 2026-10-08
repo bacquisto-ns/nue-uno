@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  allGamesEntryFor,
   compareEntries,
   cupEntryFor,
   leaderboardEntryFor,
@@ -90,6 +91,28 @@ describe('leaderboardEntryFor', () => {
       { uid: 'better', score: 20, ...base, winRate: 0.9 },
     ].sort(compareEntries);
     expect(sorted.map((e) => e.uid)).toEqual(['better', 'early', 'late', 'low']);
+  });
+});
+
+describe('allGamesEntryFor', () => {
+  it('counts casual, 2-player and short games but skips voided ones', () => {
+    const results = [
+      result(['a', 'b'], { mode: 'casual', at: 100 }),
+      result(['b', 'a', 'c'], { turns: 4, at: 300 }),
+      result(['a', 'b', 'c'], { at: 200 }),
+      result(['a', 'b', 'c'], { voided: true, at: 900 }),
+    ];
+    expect(allGamesEntryFor('a', results)).toEqual({
+      games: 3,
+      wins: 2,
+      winRate: 2 / 3,
+      avgPlace: (1 + 2 + 1) / 3,
+      lastPlayedAtMs: 300,
+    });
+  });
+
+  it('is empty for a player with no games', () => {
+    expect(allGamesEntryFor('z', [result(['a', 'b'])])).toEqual({ games: 0, wins: 0, winRate: 0, avgPlace: 0, lastPlayedAtMs: null });
   });
 });
 

@@ -27,7 +27,8 @@ describe('scoring (tournament.md §1)', () => {
   it('pays placement points by table size', () => {
     expect([1, 2, 3, 4].map((p) => placementPoints(4, p))).toEqual([10, 6, 3, 1]);
     expect([1, 2, 3].map((p) => placementPoints(3, p))).toEqual([8, 4, 1]);
-    expect(placementPoints(2, 1)).toBe(0);
+    expect([1, 2].map((p) => placementPoints(2, p))).toEqual([10, 0]);
+    expect(placementPoints(5, 1)).toBe(0); // no table configured for this size
   });
 
   it('requires 12 turns unless the player forfeited', () => {

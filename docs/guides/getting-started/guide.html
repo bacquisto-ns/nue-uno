@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Nue Uno Player Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  @page { size: Letter; margin: 0; }
+  :root { --navy:#0b1a2b; --navy2:#10263d; --gold:#f5c542; --red:#e5484d; --ink:#e8eef6; --muted:#adbccd; --line:rgba(255,255,255,.14); }
+  * { box-sizing: border-box; }
+  html, body { margin:0; background:var(--navy); color:var(--ink); font-family:Inter, "Segoe UI", Arial, sans-serif; font-size:11.5pt; line-height:1.45; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .page { width:8.5in; height:11in; padding:.55in .6in .5in; page-break-after:always; position:relative; overflow:hidden;
+          background: radial-gradient(ellipse at 50% 0%, #1a4a63 0%, #10263d 38%, #0b1a2b 75%); }
+  .page:last-child { page-break-after:auto; }
+  h1,h2,h3 { font-family:"Baloo 2", "Segoe UI", Arial, sans-serif; margin:0; line-height:1.1; }
+  .logo { font-family:"Baloo 2", Arial, sans-serif; font-weight:800; font-size:30pt; letter-spacing:.5px; }
+  .logo .n { color:var(--red); } .logo .u { color:var(--gold); }
+  h2 { font-size:21pt; color:var(--gold); margin-bottom:6px; }
+  h3 { font-size:14pt; margin:14px 0 4px; }
+  p { margin:5px 0; }
+  .muted { color:var(--muted); }
+  .part { display:inline-block; background:var(--gold); color:var(--navy); font-weight:800; font-family:"Baloo 2",Arial,sans-serif; border-radius:999px; padding:1px 12px; font-size:10.5pt; margin-bottom:6px; }
+  .panel { background:rgba(11,26,43,.78); border:1px solid var(--line); border-radius:14px; padding:12px 16px; }
+  .url { font-family:"Baloo 2", Arial, sans-serif; font-size:23pt; font-weight:800; color:var(--gold); text-decoration:none; word-break:break-all; }
+  ol.steps { list-style:none; counter-reset:s; padding:0; margin:8px 0; }
+  ol.steps > li { counter-increment:s; position:relative; padding:4px 0 4px 38px; }
+  ol.steps > li::before { content:counter(s); position:absolute; left:0; top:3px; width:26px; height:26px; border-radius:50%; background:var(--gold); color:var(--navy); font-weight:800; text-align:center; line-height:26px; font-size:11pt; }
+  b, strong { color:#fff; }
+  .ui { background:rgba(245,197,66,.16); color:var(--gold); border-radius:5px; padding:0 5px; font-weight:700; white-space:nowrap; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:start; }
+  .shot { position:relative; overflow:hidden; border-radius:10px; border:1px solid var(--line); background:#0b1a2b; }
+  .shot img { position:absolute; display:block; }
+  .cap { font-size:9.5pt; color:var(--muted); text-align:center; margin-top:4px; }
+  .callout { border-left:4px solid var(--gold); background:rgba(245,197,66,.1); border-radius:0 10px 10px 0; padding:8px 12px; margin:10px 0; }
+  .callout.big { font-size:12.5pt; }
+  ul { margin:4px 0; padding-left:20px; } li { margin:2px 0; }
+  table { border-collapse:collapse; width:100%; font-size:10.5pt; }
+  td { border-top:1px solid var(--line); padding:5px 8px; vertical-align:top; } td:first-child { width:30%; font-weight:700; color:#fff; }
+  .foot { position:absolute; left:.6in; right:.6in; bottom:.3in; border-top:1px solid var(--line); padding-top:5px; font-size:9pt; color:var(--muted); display:flex; justify-content:space-between; }
+  .cards { display:flex; gap:6px; margin:0 0 4px; }
+  .c { width:28px; height:40px; border-radius:5px; border:2px solid #fff; display:inline-block; }
+</style>
+</head>
+<body>
+
+<!-- ============ PAGE 1: QUICK START ============ -->
+<section class="page">
+  <div class="cards"><span class="c" style="background:#e5484d"></span><span class="c" style="background:#f5b400"></span><span class="c" style="background:#2fa35b"></span><span class="c" style="background:#2d7ff9"></span></div>
+  <div class="logo"><span class="n">NUE</span> <span class="u">UNO</span></div>
+  <p class="muted" style="font-size:13pt;margin-top:2px">The NueSynergy Connections tournament &mdash; Player Guide</p>
+
+  <div class="panel" style="margin-top:18px">
+    <p class="muted" style="margin:0">Play here</p>
+    <a class="url" href="https://nue-uno-prod.web.app">nue-uno-prod.web.app</a>
+    <p class="muted" style="margin:2px 0 0">Works on a laptop or phone &mdash; no download needed. Use your <b>@nuesynergy.com</b> work email.</p>
+  </div>
+
+  <div class="callout big" style="margin-top:16px">
+    <b>Pool play is open now.</b> It runs until the tournament starts <b>Thursday 10/8 at 1:00 PM Central</b>.
+    <b>Every win counts</b> &mdash; at any table size, 2, 3 or 4 players &mdash; and the more you play, the better your shot at the headphones.
+  </div>
+
+  <h2 style="margin-top:18px">Quick start</h2>
+  <ol class="steps">
+    <li><b>Open the link</b> above and choose <span class="ui">Create account</span> (Part 1&ndash;2).</li>
+    <li><b>Set up your player card</b> &mdash; name, avatar, department &mdash; and tap <span class="ui">Let's play</span>.</li>
+    <li><b>Get a seat:</b> tap <span class="ui">&#9889; Quick Match (ranked)</span>, join a table under <b>Open tables</b>, or start your own (Parts 3&ndash;4).</li>
+    <li><b>Play, win, repeat.</b> Check the <span class="ui">Leaderboard &rarr; All games</span> tab to see where you stand.</li>
+  </ol>
+
+  <h3>What's inside</h3>
+  <table>
+    <tr><td>Part 1</td><td>Get to the game and sign in</td></tr>
+    <tr><td>Part 2</td><td>Create and set up your account</td></tr>
+    <tr><td>Part 3</td><td>Create a table &mdash; for the table lead</td></tr>
+    <tr><td>Part 4</td><td>Join a table and play</td></tr>
+  </table>
+
+  <div class="foot"><span>nue-uno-prod.web.app</span><span>Pool play ends Thu 10/8 at 1:00 PM Central</span></div>
+</section>
+
+<!-- ============ PAGE 2: ACCOUNT ============ -->
+<section class="page">
+  <span class="part">PART 1</span>
+  <h2>Get to the game</h2>
+  <ol class="steps">
+    <li>Open <b>https://nue-uno-prod.web.app</b> in your browser (Chrome, Edge, Safari &mdash; laptop or phone).</li>
+    <li>You'll land on the <b>NUE UNO</b> sign-in page. Only <b>@nuesynergy.com</b> emails work &mdash; anything else shows <i>"Use your @nuesynergy.com work email."</i></li>
+    <li>Tip: on a phone, use your browser's <b>Add to Home Screen</b> to keep Nue Uno one tap away.</li>
+  </ol>
+
+  <span class="part" style="margin-top:12px">PART 2</span>
+  <h2>Create and set up your account</h2>
+  <div class="grid2">
+    <div>
+      <ol class="steps">
+        <li>Tap the <span class="ui">Create account</span> tab.</li>
+        <li>Enter your <b>Work email</b>.</li>
+        <li>Choose a password &mdash; <b>8 or more characters</b>.</li>
+        <li>Tap <span class="ui">Create account</span>. No email verification needed &mdash; you're straight in.</li>
+      </ol>
+      <p class="muted" style="font-size:10pt">Already have an account? Use the <span class="ui">Sign in</span> tab. Forgot your password? Tap <b>Forgot password?</b> or <b>Email me a link instead</b>.</p>
+    </div>
+    <div>
+      <!-- 01b crop (form only): x .38-.62, y .44-.86 -->
+      <div class="shot" style="aspect-ratio:376/310"><img src="../how-to-play/shots/01b-create-account.jpg" style="width:416.7%;left:-158.3%;top:-104.8%" alt="Create account"></div>
+      <div class="cap">The Create account tab</div>
+    </div>
+  </div>
+
+  <h3>Then, set up your player card (about 30 seconds)</h3>
+  <ul>
+    <li><b>Display name</b> &mdash; what other players see (up to 24 characters).</li>
+    <li><b>Avatar &amp; colour</b> &mdash; pick an animal and a colour.</li>
+    <li><b>Department</b> &mdash; choose yours from the list.</li>
+    <li><b>Will you be at the in-office event?</b> &mdash; Yes / Not sure / No. Only in-office players can be seeded into the bracket.</li>
+    <li>Tap <span class="ui">Let's play</span>.</li>
+  </ul>
+  <div class="callout">
+    <b>New to Uno?</b> A 2-minute tutorial starts next &mdash; tap <span class="ui">Start the tutorial</span> to play a practice game against Coach, or <span class="ui">&larr; Skip for now</span>. You can also use <span class="ui">Practice vs bots</span> any time from the lobby.
+  </div>
+  <p class="muted" style="font-size:10pt">Seeing <b>"Almost there"</b> after sign-up? An organizer needs to approve your account &mdash; you'll get in automatically once they do.</p>
+
+  <div class="foot"><span>nue-uno-prod.web.app</span><span>Part 1&ndash;2 &middot; Sign in &amp; account</span></div>
+</section>
+
+<!-- ============ PAGE 3: TABLE LEAD ============ -->
+<section class="page">
+  <span class="part">PART 3</span>
+  <h2>Create a table &mdash; table lead</h2>
+  <p class="muted">Want to play with specific coworkers? Be the table lead: you open the table, share the link, and start the game.</p>
+
+  <div class="grid2" style="margin-top:8px">
+    <div>
+      <!-- 03 lobby crop: x .30-.70, y .01-.91 -->
+      <div class="shot" style="aspect-ratio:627/664"><img src="../how-to-play/shots/03-lobby.jpg" style="width:250%;left:-75%;top:-1.1%" alt="Lobby"></div>
+      <div class="cap">Lobby &mdash; <b>Start a table</b></div>
+    </div>
+    <div>
+      <!-- 05b waiting room: x .38-.615 y .24-.76 -->
+      <div class="shot" style="aspect-ratio:368/384"><img src="../how-to-play/shots/05b-waiting-room-3seated.jpg" style="width:425.5%;left:-161.7%;top:-46.2%" alt="Waiting room"></div>
+      <div class="cap">Waiting room &mdash; share the link, then start</div>
+    </div>
+  </div>
+
+  <ol class="steps" style="margin-top:12px">
+    <li>In the lobby, find the <b>Start a table</b> panel.</li>
+    <li>Pick the seats: <span class="ui">2 seats</span>, <span class="ui">3 seats</span> or <span class="ui">4 seats</span> (4 is the default and the most fun).</li>
+    <li>Tap <span class="ui">Create table</span>. You're taken to the waiting room.</li>
+    <li>Tap <span class="ui">Copy link</span> next to <b>Invite link</b> and send it to your coworkers in Teams or email. Your table also shows up under <b>Open tables</b> for anyone in the lobby.</li>
+    <li>When enough players have taken a seat, tap <span class="ui">Start game</span>. It's available to you, the host, once <b>2 or more</b> players are seated &mdash; until then it says <i>Waiting for players&hellip;</i></li>
+  </ol>
+
+  <div class="callout">
+    <b>Every game counts.</b> During pool play every game scores leaderboard and bracket-seeding points at <b>any table size</b> &mdash; even 2 players. So start tables whenever you can; don't wait for a full house.
+  </div>
+  <p class="muted" style="font-size:10pt">Changed your mind? <span class="ui">Leave table</span> hands hosting to the next seated player. Stuck waiting? Tap <span class="ui">&larr; Lobby</span> and try <span class="ui">&#9889; Quick Match (ranked)</span>.</p>
+
+  <div class="foot"><span>nue-uno-prod.web.app</span><span>Part 3 &middot; Create a table</span></div>
+</section>
+
+<!-- ============ PAGE 4: JOIN + PLAY ============ -->
+<section class="page">
+  <span class="part">PART 4</span>
+  <h2>Join a table and play</h2>
+  <p class="muted">Three easy ways to get a seat:</p>
+  <table>
+    <tr><td>&#9889; Quick Match</td><td>Tap <span class="ui">&#9889; Quick Match (ranked)</span> in the lobby. We drop you at an open ranked table, or start a new 4-seat table that begins automatically when it's full. <b>Fastest way to get a game.</b></td></tr>
+    <tr><td>Open tables</td><td>Scroll to <b>Open tables</b> in the lobby, find a table that has room (e.g. <i>"Priya's table &middot; 2/4"</i>) and tap <span class="ui">Join</span>. It says <b>Full</b> when there's no room.</td></tr>
+    <tr><td>A link from the lead</td><td>Open the invite link you were sent, then tap <span class="ui">Take a seat</span>. If it says <i>Table full</i>, head back to the lobby.</td></tr>
+  </table>
+  <p style="margin-top:8px">Once you're seated, wait in the waiting room &mdash; the table lead starts the game (Quick Match tables start by themselves when full). You can only sit at one table at a time; use the <b>"You're seated at a table"</b> banner to jump back.</p>
+
+  <h3>How a turn works</h3>
+  <div class="grid2">
+    <div>
+      <ul>
+        <li><b>Your turn</b> shows in gold at the top right. You have <b>30 seconds</b>.</li>
+        <li><b>Play a card</b> that matches the colour or number of the top card &mdash; just tap it.</li>
+        <li><b>No match?</b> Tap the deck to <span class="ui">Draw a card</span>. If the drawn card is playable, play it or tap <span class="ui">Pass</span>.</li>
+        <li><b>UNO!</b> When you're down to one card, tap <span class="ui">UNO!</span> first. If another player forgets, tap <span class="ui">Catch! &#127919;</span> on them.</li>
+        <li>First to empty their hand wins.</li>
+      </ul>
+    </div>
+    <div>
+      <div class="shot" style="aspect-ratio:1568/738"><img src="../how-to-play/shots/06a-game-start.jpg" style="width:100%;left:0;top:0" alt="Game screen"></div>
+      <div class="cap">The game screen &mdash; your hand is at the bottom</div>
+    </div>
+  </div>
+
+  <h3>After the game &mdash; the Leaderboard</h3>
+  <p>Tap <span class="ui">&#127942; Leaderboard</span> in the lobby. Three tabs:</p>
+  <ul>
+    <li><span class="ui">All games</span> &mdash; <b>every win, at every table size.</b> This is the one to watch for the headphone giveaway.</li>
+    <li><span class="ui">Qualifier</span> &mdash; points from every game (best 10 count) that decide the bracket seeding.</li>
+    <li><span class="ui">&#127970; Department Cup</span> &mdash; how your department stacks up.</li>
+  </ul>
+  <div class="callout">
+    <b>Pool play ends Thursday 10/8 at 1:00 PM Central</b>, when the tournament begins. Play as many games as you can before then &mdash; good luck!
+  </div>
+
+  <div class="foot"><span>nue-uno-prod.web.app</span><span>Part 4 &middot; Join &amp; play</span></div>
+</section>
+
+</body>
+</html>

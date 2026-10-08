@@ -24,6 +24,8 @@
     "deploy:dev": "npm run build -w @nue-uno/functions && npm run build -w @nue-uno/web -- --mode dev && firebase deploy --project dev --only firestore:rules,firestore:indexes,database,functions,hosting",
     "deploy:prod": "npm run build -w @nue-uno/functions && npm run build -w @nue-uno/web -- --mode prod && firebase deploy --project prod --only firestore:rules,firestore:indexes,database,functions,hosting",
     "seed:event": "esbuild scripts/seed-event.ts --bundle --platform=node --format=esm --target=node22 --packages=external --outfile=node_modules/.cache/nue-uno/seed-event.mjs --log-level=warning && node node_modules/.cache/nue-uno/seed-event.mjs",
+    "rescore:poolplay": "esbuild scripts/rescore-pool-play.ts --bundle --platform=node --format=esm --target=node22 --external:firebase-admin --external:firebase-admin/* --outfile=node_modules/.cache/nue-uno/rescore-pool-play.mjs --log-level=warning && node node_modules/.cache/nue-uno/rescore-pool-play.mjs",
+    "backfill:allgames": "esbuild scripts/backfill-allgames.ts --bundle --platform=node --format=esm --target=node22 --packages=external --outfile=node_modules/.cache/nue-uno/backfill-allgames.mjs --log-level=warning && node node_modules/.cache/nue-uno/backfill-allgames.mjs",
     "load-test": "esbuild scripts/load-test.ts --bundle --platform=node --format=esm --target=node22 --outfile=node_modules/.cache/nue-uno/load-test.mjs --log-level=warning && node node_modules/.cache/nue-uno/load-test.mjs"
   },
   "devDependencies": {

@@ -70,6 +70,40 @@ export function leaderboardEntryFor(
   return { ...summary, scoreReachedAtMs: reached };
 }
 
+// ---- All-games board ------------------------------------------------------------------------
+
+export interface AllGamesEntryCore {
+  games: number;
+  wins: number;
+  winRate: number;
+  avgPlace: number;
+  lastPlayedAtMs: number | null;
+}
+
+/** Every non-voided game the player finished — any mode, table size or length. */
+export function allGamesEntryFor(uid: string, results: readonly ResultDoc[]): AllGamesEntryCore {
+  let games = 0;
+  let wins = 0;
+  let placeSum = 0;
+  let last: number | null = null;
+  for (const r of results) {
+    if (r.voided) continue;
+    const p = r.placements.find((x) => x.uid === uid);
+    if (!p) continue;
+    games++;
+    placeSum += p.place;
+    if (p.place === 1 && !p.forfeited) wins++;
+    if (last === null || r.finishedAtMs > last) last = r.finishedAtMs;
+  }
+  return {
+    games,
+    wins,
+    winRate: games ? wins / games : 0,
+    avgPlace: games ? placeSum / games : 0,
+    lastPlayedAtMs: last,
+  };
+}
+
 export interface RankableEntry {
   uid: string;
   score: number;
