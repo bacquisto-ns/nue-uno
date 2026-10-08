@@ -1,5 +1,5 @@
 import { randomInt } from 'node:crypto';
-import { createGame } from '@nue-uno/engine';
+import { applyAction, createGame, type EngineEvent } from '@nue-uno/engine';
 import { groupKey, startOfDayMs } from '@nue-uno/shared';
 import { FieldValue, Timestamp, type Transaction } from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions/v2';
@@ -64,9 +64,19 @@ export function startInTx(
   seatUids: string[],
   plan: StartPlan,
   season: Season,
+  /** Seated players who are not here: dealt in, then forfeited so they finish last (bracket tables). */
+  forfeitUids: string[] = [],
 ): void {
   const now = clock.now();
-  const { state, events } = createGame(seatUids, newSeed());
+  const dealt = createGame(seatUids, newSeed());
+  let state = dealt.state;
+  const events: EngineEvent[] = [...dealt.events];
+  for (const uid of forfeitUids) {
+    const res = applyAction(state, { type: 'forfeit', uid });
+    if (!res.ok) throw new Error(`could not forfeit absent player: ${res.message}`);
+    state = res.state;
+    events.push(...res.events);
+  }
   const turnMs = plan.mode === 'bracket' ? season.timers.bracketMs : plan.mode === 'ranked' ? season.timers.rankedMs : season.timers.casualMs;
   const capMin = plan.mode === 'bracket' ? season.finalLap.bracketMin : season.finalLap.qualifierMin;
   writeState(tx, { ...loaded, hands: undefined, priv: undefined }, state, events, {

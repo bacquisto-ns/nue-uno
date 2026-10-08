@@ -27,8 +27,8 @@ export const eventApi = {
   editBracketSeeds: (bracketId: string, seeds: { seed: number; uid: string }[]) => adminCall<Ok>('editBracketSeeds', { bracketId, seeds }),
   setPhysicalTables: (bracketId: string, map: Record<string, number>) => adminCall<Ok>('setPhysicalTables', { bracketId, map }),
   lockBracket: (bracketId: string) => adminCall<Ok>('lockBracket', { bracketId }),
-  startMatch: (bracketId: string, matchId: string, force = false) =>
-    adminCall<Ok & { gameId: string }>('startMatch', { bracketId, matchId, force }),
+  startMatch: (bracketId: string, matchId: string, force = false, skipAbsent = false) =>
+    adminCall<Ok & { gameId: string }>('startMatch', { bracketId, matchId, force, skipAbsent }),
   overrideMatchResult: (bracketId: string, matchId: string, placements: string[], reason: string) =>
     adminCall<Ok>('overrideMatchResult', { bracketId, matchId, placements, reason }),
   restartMatchGame: (bracketId: string, matchId: string, reason: string) =>

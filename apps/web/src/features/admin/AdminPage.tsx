@@ -61,7 +61,7 @@ export function AdminPage() {
   const myUid = useSession((s) => s.user?.uid);
   const { bracketId, bracket, matches, season, paused } = useActiveBracket();
   const directory = useDirectory();
-  const seasonDoc = useDoc<{ status?: SeasonStatus; bracketSize?: number; qualifierStart?: Timestamp; qualifierEnd?: Timestamp }>(`seasons/${season.id}`);
+  const seasonDoc = useDoc<{ status?: SeasonStatus; bracketSize?: number; seedAllAttending?: boolean; qualifierStart?: Timestamp; qualifierEnd?: Timestamp }>(`seasons/${season.id}`);
   const tv = useDoc<{ scene?: TvScene; autoCycle?: boolean; selectionStep?: number | null; introMatchId?: string | null; awardsStep?: number | null }>('tv/state');
   const awards = useDoc<{ items?: { key: string; emoji: string; title: string; winners: { displayName: string }[] }[] }>(`awards/${season.id}`);
   const games = useQuery<LiveGameRow>(query(collection(db, 'games'), where('status', '==', 'in_progress'), limit(50)), 'admin-live-games');
@@ -133,6 +133,7 @@ export function AdminPage() {
           {(!bracket || bracket.status === 'draft') && (
             <div className="ml-auto flex items-center gap-2">
               <label className="text-sm">Size <input type="number" min={3} max={64} value={size} onChange={(e) => setSize(Number(e.target.value))} className="w-16 rounded-lg bg-felt-950/70 px-2 py-1 ring-1 ring-white/15" /></label>
+              {seasonDoc.data?.seedAllAttending && <span className="text-xs text-ink-muted">Everyone who said Yes is seeded — size is ignored.</span>}
               <Button variant="ghost" disabled={!!busy} onClick={() => void run('gen', () => eventApi.generateBracket(size), 'Draft generated ✓')}>
                 {bracket ? 'Regenerate draft' : 'Generate draft'}
               </Button>
@@ -189,6 +190,9 @@ export function AdminPage() {
                   )}
                   {mt.status === 'ready' && (
                     <Button variant="ghost" className="py-1 text-sm" disabled={!!busy} onClick={() => void run(mt.id, () => eventApi.startMatch(bracketId, mt.id, true), 'Started ▶')}>Force start</Button>
+                  )}
+                  {mt.status === 'ready' && mt.gameIds.length === 0 && mt.checkedIn.length >= 2 && mt.checkedIn.length < mt.slots.length && (
+                    <Button variant="ghost" className="py-1 text-sm" disabled={!!busy} title="Deal the game now with the checked-in players; everyone else is forfeited (last place)" onClick={() => void run(mt.id, () => eventApi.startMatch(bracketId, mt.id, false, true), `Started with ${mt.checkedIn.length} ▶`)}>Start with {mt.checkedIn.length} here</Button>
                   )}
                   {mt.status === 'in_progress' && (
                     <Button variant="ghost" className="py-1 text-sm" disabled={!!busy || reason.trim().length < 3} onClick={() => void run(mt.id, () => eventApi.restartMatchGame(bracketId, mt.id, reason), 'Restarted ↻')}>Restart</Button>
