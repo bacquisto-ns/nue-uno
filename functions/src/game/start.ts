@@ -2,6 +2,7 @@ import { randomInt } from 'node:crypto';
 import { createGame } from '@nue-uno/engine';
 import { groupKey, startOfDayMs } from '@nue-uno/shared';
 import { FieldValue, Timestamp, type Transaction } from 'firebase-admin/firestore';
+import { logger } from 'firebase-functions/v2';
 import { db } from '../admin.js';
 import { clock } from '../clock.js';
 import { isEmulator } from '../env.js';
@@ -25,20 +26,28 @@ export async function planStart(
   season: Season,
 ): Promise<StartPlan> {
   if (game.bracketId) return { mode: 'bracket', collusionWarning: false };
-  if (game.requestedMode !== 'ranked') return { mode: 'casual', collusionWarning: false };
+  // Pool play: every lobby game counts toward the qualifier while the window is open, whatever the
+  // table size or the requested mode. Outside the window it's a casual game.
   const now = clock.now();
-  if (seatUids.length < 3 || !qualifiersOpen(season, now)) {
-    return { mode: 'casual', collusionWarning: false };
-  }
+  if (!qualifiersOpen(season, now)) return { mode: 'casual', collusionWarning: false };
+  // maxSameGroupPerDay <= 0 disables the anti-collusion cap (and its results query) entirely.
+  if (season.scoring.maxSameGroupPerDay <= 0) return { mode: 'ranked', collusionWarning: false };
   const since = Timestamp.fromMillis(startOfDayMs(now, season.timezone));
-  const today = await tx.get(
-    db
-      .collection('results')
-      .where('seasonId', '==', season.id)
-      .where('groupKey', '==', groupKey(seatUids))
-      .where('finishedAt', '>=', since),
-  );
-  const played = today.docs.filter((d) => d.get('mode') === 'ranked' && !d.get('voided')).length;
+  let played: number;
+  try {
+    const today = await tx.get(
+      db
+        .collection('results')
+        .where('seasonId', '==', season.id)
+        .where('groupKey', '==', groupKey(seatUids))
+        .where('finishedAt', '>=', since),
+    );
+    played = today.docs.filter((d) => d.get('mode') === 'ranked' && !d.get('voided')).length;
+  } catch (err) {
+    // The anti-collusion check must never take a table down (e.g. a missing index): log and allow.
+    logger.error('planStart: anti-collusion query failed; treating group as under the daily cap', err);
+    played = 0;
+  }
   const blocked = played >= season.scoring.maxSameGroupPerDay;
   return { mode: blocked ? 'casual' : 'ranked', collusionWarning: blocked };
 }

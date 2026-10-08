@@ -68,7 +68,6 @@ export function Lobby() {
   const navigate = useNavigate();
   const { profile, claims, user } = useSession();
   const [seats, setSeats] = useState(4);
-  const [ranked, setRanked] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState('');
 
@@ -156,15 +155,11 @@ export function Lobby() {
               </button>
             ))}
           </div>
-          <label className="flex items-center gap-2">
-            <input type="checkbox" checked={ranked} onChange={(e) => setRanked(e.target.checked)} className="h-5 w-5 accent-[var(--color-gold)]" />
-            Ranked
-          </label>
-          <Button disabled={!!busy} onClick={() => void go('create', () => gameApi.createTable(seats, ranked ? 'ranked' : 'casual'))}>
+          <Button disabled={!!busy} onClick={() => void go('create', () => gameApi.createTable(seats, 'ranked'))}>
             {busy === 'create' ? 'Creating…' : 'Create table'}
           </Button>
         </div>
-        <p className="text-xs text-ink-muted">Ranked games need 3+ players and count toward the qualifier leaderboard.</p>
+        <p className="text-xs text-ink-muted">Every game counts toward the leaderboard and the bracket seeding — at any table size.</p>
         <ErrorText>{error}</ErrorText>
       </Panel>
 

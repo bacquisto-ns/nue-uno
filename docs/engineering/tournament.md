@@ -7,11 +7,10 @@ All numbers below are defaults stored in `seasons/{id}`. An admin can change the
 ## 1. Qualifiers
 
 ### Which games are ranked
-A game starts as **ranked** only if all of these are true when `startGame` runs:
-- the host asked for Ranked,
-- **3 or more** humans are seated (2-player games are always casual),
+**Pool-play policy (Oct 2026):** every lobby game that starts inside the window counts, whatever the table size or the host's "Ranked" choice:
 - the time is inside `[qualifierStart, qualifierEnd)` and the season status is `qualifying`,
-- the same group of players hasn't already played `maxSameGroupPerDay` (2) ranked games together today (see anti-collusion below).
+- 2, 3 or 4 humans may be seated (2-player games pay 10/0),
+- the same-group daily cap `maxSameGroupPerDay` applies only when it is > 0 (0 disables it and the anti-collusion query).
 
 A game that starts inside the window counts even if it finishes after the window closes. Practice games against bots never count.
 
@@ -20,7 +19,7 @@ Every human game writes a `results` doc, which is used for the Passport and stat
 
 | Situation | `counts` |
 |---|---|
-| The game reached **12 or more turns** (`minTurnsForPoints`) | `true` for everyone |
+| The game reached **`minTurnsForPoints` turns** (12 by default; the pool-play season sets 0, so every game counts) | `true` for everyone |
 | The game ended before 12 turns, player **did not** forfeit | `false`: no points for anyone who stayed |
 | The game ended before 12 turns, player **forfeited** | `true`, with last-place points, so quitting can't be used to escape a bad result |
 
@@ -31,6 +30,7 @@ This stops friends from quitting early to hand someone a win (v1 review finding 
 |---|---|---|---|---|
 | 4 players | 10 | 6 | 3 | 1 |
 | 3 players | 8 | 4 | 1 | — |
+| 2 players | 10 | 0 | — | — |
 
 Placement order follows [game-engine.md §Game end](game-engine.md#game-end-and-placements). It works the same whether the game ended by an empty hand, the Final Lap, or everyone else leaving. Players who forfeit get last-place points.
 

@@ -89,14 +89,9 @@ function PreGameTable({ gameId, game }: { gameId: string; game: LobbyDoc }) {
     }
   }
 
-  const rankedNote =
-    game.requestedMode !== 'ranked'
-      ? 'Casual game — just for fun.'
-      : game.collusionWarning
-        ? "This group has hit today's ranked limit — this game will be casual."
-        : game.seatUids.length < 3
-          ? 'Ranked needs 3+ players — with 2 it will be casual.'
-          : 'Ranked (if the qualifier window is open).';
+  const rankedNote = game.collusionWarning
+    ? "This group has hit today's ranked limit — this game will be casual."
+    : 'Counts toward the leaderboard (while the qualifier window is open).';
 
   return (
     <Screen>

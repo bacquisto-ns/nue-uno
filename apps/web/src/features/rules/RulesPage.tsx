@@ -52,7 +52,7 @@ export function RulesPage() {
 
       <Panel className="space-y-2">
         <h2 className="font-display text-2xl font-extrabold">Ranked games</h2>
-        <p>Ranked games need 3+ players and pay placement points: 10/6/3/1 at a 4-player table, 8/4/1 at 3. Your qualifier score is your best 10 results; you need 3 ranked games to be eligible for the bracket.</p>
+        <p>During pool play every game counts at any table size and pays placement points: 10/6/3/1 at a 4-player table, 8/4/1 at 3, and 10 for the winner of a 2-player game. Your qualifier score is your best 10 results; you need 3 games to be eligible for the bracket.</p>
       </Panel>
 
       <Panel>

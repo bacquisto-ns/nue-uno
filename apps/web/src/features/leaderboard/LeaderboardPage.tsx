@@ -20,6 +20,17 @@ interface CupDoc {
   topScores: { uid: string; score: number }[];
 }
 
+interface AllGamesDoc {
+  id: string;
+  displayName: string;
+  avatarId: string;
+  avatarColor: string;
+  department: string | null;
+  games: number;
+  wins: number;
+  winRate: number;
+}
+
 /** Keep the previous ranks across snapshots (derived-state pattern — no refs during render). */
 function useRankMovement(standings: Standing[]) {
   const key = standings.map((s) => `${s.id}:${s.rank}`).join(',');
@@ -42,7 +53,19 @@ export function LeaderboardPage() {
   const uid = useSession((s) => s.user!.uid);
   const season = useSeason();
   const full = useEffectsMode() === 'full';
-  const [tab, setTab] = useState<'players' | 'cup'>('players');
+  const [tab, setTab] = useState<'players' | 'all' | 'cup'>('players');
+
+  const allGames = useQuery<Omit<AllGamesDoc, 'id'>>(
+    query(collection(db, `leaderboard/${season.id}/allGames`), orderBy('wins', 'desc'), limit(200)),
+    `lb-all-${season.id}`,
+  );
+  const allRows = useMemo(
+    () =>
+      [...((allGames.data ?? []) as AllGamesDoc[])].sort(
+        (a, b) => b.wins - a.wins || b.winRate - a.winRate || b.games - a.games || a.id.localeCompare(b.id),
+      ),
+    [allGames.data],
+  );
 
   const entries = useQuery<Omit<EntryDoc, 'id'>>(
     query(collection(db, `leaderboard/${season.id}/entries`), orderBy('score', 'desc'), limit(200)),
@@ -71,19 +94,42 @@ export function LeaderboardPage() {
       </Panel>
 
       <div role="tablist" className="flex gap-1 self-start rounded-xl bg-white/5 p-1">
-        {(['players', 'cup'] as const).map((t) => (
+        {(['players', 'all', 'cup'] as const).map((t) => (
           <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
             className={`rounded-lg px-4 py-2 font-semibold ${tab === t ? 'bg-gold text-felt-950' : ''}`}>
-            {t === 'players' ? 'Players' : '🏢 Department Cup'}
+            {t === 'players' ? 'Qualifier' : t === 'all' ? 'All games' : '🏢 Department Cup'}
           </button>
         ))}
       </div>
 
-      {tab === 'players' ? (
+      {tab === 'all' ? (
+        allGames.data === undefined ? (
+          <p className="text-ink-muted">Loading…</p>
+        ) : allRows.length === 0 ? (
+          <Panel>No finished games yet — play one to get on the board!</Panel>
+        ) : (
+          <ol className="space-y-2" aria-label="All games standings">
+            {allRows.map((r, i) => (
+              <li key={r.id}
+                className={`flex items-center gap-3 rounded-2xl px-4 py-3 ring-1 ${r.id === uid ? 'bg-felt-800 ring-gold/70' : 'bg-felt-900/80 ring-white/10'}`}>
+                <span className="font-display w-8 text-2xl font-extrabold">{i === 0 ? '👑' : i + 1}</span>
+                <Avatar avatarId={r.avatarId} color={r.avatarColor} size={36} label="" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-semibold">{r.displayName}{r.id === uid ? ' (you)' : ''}</p>
+                  <p className="truncate text-xs text-ink-muted">
+                    {[r.department, `${r.games} games`, `${Math.round(r.winRate * 100)}% win rate`].filter(Boolean).join(' · ')}
+                  </p>
+                </div>
+                <span className="font-display w-12 text-right text-2xl font-extrabold" title="Wins">{r.wins}</span>
+              </li>
+            ))}
+          </ol>
+        )
+      ) : tab === 'players' ? (
         entries.data === undefined ? (
           <p className="text-ink-muted">Loading…</p>
         ) : standings.length === 0 ? (
-          <Panel>No ranked games yet — be the first on the board!</Panel>
+          <Panel>No qualifier games yet — every finished game counts while the qualifier window is open. Play one to get on the board!</Panel>
         ) : (
           <ol className="space-y-2" aria-label="Qualifier standings">
             {standings.map((s) => (
