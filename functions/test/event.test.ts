@@ -90,6 +90,8 @@ describe('start without all players', () => {
     const result = (await db.doc(`results/${gameId}`).get()).data()!;
     expect(result.placements.find((x: { uid: string }) => x.uid === absent)).toMatchObject({ place: 4, forfeited: true });
     expect((await match(bracketId, 'SF-A')).status).toBe('complete');
+  });
+});
 
 describe('seedAllAttending', () => {
   it('seeds every active player who said Yes, even with fewer than 3 games or none, and ignores the size', async () => {
