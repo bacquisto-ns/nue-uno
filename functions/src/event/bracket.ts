@@ -66,13 +66,39 @@ function planFrom(bracket: BracketDoc, matches: Record<string, MatchDoc>): Brack
 
 // ---- Generate / edit / lock (admin) ---------------------------------------------------------
 
-/** Top N eligible, attending players in leaderboard order (tournament.md §2). */
-async function seedCandidates(seasonId: string, exclude: string[]) {
+/**
+ * Top N eligible, attending players in leaderboard order (tournament.md §2).
+ *
+ * With `seedAllAttending` (season setting), eligibility is ignored and EVERY active player who said
+ * Yes is a candidate: those with games keep their leaderboard stats, the rest start at zero and
+ * seed after everyone with points (ties by uid).
+ */
+async function seedCandidates(seasonId: string, exclude: string[], allAttending = false) {
   const snap = await db.collection(`leaderboard/${seasonId}/entries`).get();
-  return snap.docs
-    .map((d) => ({ uid: d.id, ...(d.data() as { displayName: string; score: number; winRate: number; avgPlace: number; eligible: boolean; attendingEvent: string }), scoreReachedAtMs: d.get('scoreReachedAt')?.toMillis?.() ?? null }))
-    .filter((e) => e.eligible && e.attendingEvent === 'yes' && !exclude.includes(e.uid))
-    .sort(compareEntries);
+  const entries = snap.docs.map((d) => ({ uid: d.id, ...(d.data() as { displayName: string; score: number; winRate: number; avgPlace: number; eligible: boolean; attendingEvent: string }), scoreReachedAtMs: d.get('scoreReachedAt')?.toMillis?.() ?? null }));
+  if (!allAttending) {
+    return entries.filter((e) => e.eligible && e.attendingEvent === 'yes' && !exclude.includes(e.uid)).sort(compareEntries);
+  }
+  const byUid = new Map(entries.map((e) => [e.uid, e]));
+  const yes = await db.collection('users').where('attendingEvent', '==', 'yes').get();
+  const candidates = yes.docs
+    .filter((u) => u.get('status') === 'active' && !exclude.includes(u.id))
+    .map((u) => {
+      const e = byUid.get(u.id);
+      const played = (e?.score ?? 0) > 0 || (e as { rankedGames?: number } | undefined)?.rankedGames;
+      return {
+        uid: u.id,
+        displayName: (u.get('displayName') as string | undefined) ?? e?.displayName ?? 'Player',
+        score: e?.score ?? 0,
+        winRate: e?.winRate ?? 0,
+        // Players with no games sort after players who have played (compareEntries ranks avgPlace ascending).
+        avgPlace: played ? (e?.avgPlace ?? 0) : Number.MAX_SAFE_INTEGER,
+        eligible: true,
+        attendingEvent: 'yes',
+        scoreReachedAtMs: e?.scoreReachedAtMs ?? null,
+      };
+    });
+  return candidates.sort(compareEntries);
 }
 
 function matchDocsFor(plan: BracketPlan, seedUids: string[], physical?: Record<string, number>): Record<string, MatchDoc> {
@@ -121,8 +147,10 @@ export async function generateBracketFor(
       throw fail('failed-precondition', 'BRACKET_LOCKED', 'The bracket is locked — use overrides instead.');
     }
   }
-  const candidates = await seedCandidates(season.id, opts.excludeUids ?? []);
-  const wanted = opts.size ?? seasonDoc.bracketSize ?? 16;
+  const allAttending = seasonDoc.seedAllAttending === true;
+  const candidates = await seedCandidates(season.id, opts.excludeUids ?? [], allAttending);
+  // seedAllAttending: everyone who said Yes plays, so the requested size is ignored.
+  const wanted = allAttending ? candidates.length : (opts.size ?? seasonDoc.bracketSize ?? 16);
   const size = Math.min(wanted, candidates.length);
   if (size < 3) throw fail('failed-precondition', 'NOT_ENOUGH_PLAYERS', 'At least 3 eligible, attending players are needed.');
   const finalGames = seasonDoc.finalGames ?? 3;
