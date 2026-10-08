@@ -1,3 +1,4 @@
+import { clearSeasonCache } from '../src/season.js';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../src/admin.js';
 import { onResultWrittenHandler } from '../src/derived/recompute.js';
@@ -56,6 +57,28 @@ async function playOut(gameId: string, order: string[], players: Record<string, 
 }
 
 const match = async (bracketId: string, id: string) => (await db.doc(`brackets/${bracketId}/matches/${id}`).get()).data()!;
+
+describe('seedAllAttending', () => {
+  it('seeds every active player who said Yes, even with fewer than 3 games or none, and ignores the size', async () => {
+    const boss = await admin();
+    const p = await field(4, { attending: (i) => (i === 4 ? 'no' : 'yes') }); // p4x is remote
+    await db.doc(`leaderboard/${SEASON}/entries/p3x`).set({ eligible: false, rankedGames: 2, score: 20 }, { merge: true }); // not eligible yet
+    await db.doc('users/p4x').set({ attendingEvent: 'no' }, { merge: true });
+    await makePlayer('Newbie'); // said Yes, no games, no leaderboard entry
+    await makePlayer('Maybe', { attendingEvent: 'maybe' });
+    await db.doc(`seasons/${SEASON}`).set({ seedAllAttending: true }, { merge: true });
+    clearSeasonCache();
+
+    const { bracketId, size } = await generateBracketHandler(call(boss, { size: 3 })); // requested size is ignored
+    const bracket = (await db.doc(`brackets/${bracketId}`).get()).data()!;
+    const uids = bracket.seeds.map((s: { uid: string }) => s.uid);
+    expect(size).toBe(4);
+    expect(uids).toEqual(['p1x', 'p2x', 'p3x', 'newbie']); // by score; no-games player last
+    expect(uids).not.toContain('p4x');
+    expect(uids).not.toContain('maybe');
+    expect(p.p1x).toBeTruthy();
+  });
+});
 
 describe('bracket lifecycle', () => {
   it('generates from eligible attendees, locks, checks in, plays, advances and crowns a champion', async () => {
